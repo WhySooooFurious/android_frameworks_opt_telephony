@@ -315,6 +315,8 @@ public class GsmCdmaPhone extends Phone {
     // If this value is null, then the modem value is unknown. If a caller explicitly sets the
     // N1 mode, this value will be initialized before any attempt to set the value in the modem.
     private Boolean mModemN1Mode = null;
+    // The forced N1 mode was pushed while the modem was already registered with SA disabled.
+    private boolean mForcedN1ModeReregisterPending = false;
 
     // Constructors
 
@@ -2139,6 +2141,12 @@ public class GsmCdmaPhone extends Phone {
         });
     }
 
+    /** Whether the device keeps 5G SA allowed regardless of the carrier config. */
+    private boolean isNrSaForced() {
+        return mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_force_nr_sa_allowed);
+    }
+
     /** Only called on the handler thread. */
     private void maybeUpdateModemN1Mode(@Nullable Message result) {
         final boolean wantN1Enabled = mN1ModeDisallowedReasons.isEmpty();
@@ -2160,18 +2168,24 @@ public class GsmCdmaPhone extends Phone {
 
     /** Only called on the handler thread. */
     private void updateCarrierN1ModeSupported(@NonNull PersistableBundle b) {
-        if (!CarrierConfigManager.isConfigForIdentifiedCarrier(b)) return;
-
-        final int[] supportedNrModes = b.getIntArray(
-                CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY);
-
-
-        if (ArrayUtils.contains(
-                supportedNrModes,
-                CarrierConfigManager.CARRIER_NR_AVAILABILITY_SA)) {
+        // A device may keep SA allowed regardless of the carrier's NR availabilities. Decide it
+        // from the very first config, identified or not: the modem only applies a change of
+        // the N1 mode when the radio is powered on, so a later change is lost until then.
+        if (isNrSaForced()) {
             mN1ModeDisallowedReasons.remove(N1_MODE_DISALLOWED_REASON_CARRIER);
         } else {
-            mN1ModeDisallowedReasons.add(N1_MODE_DISALLOWED_REASON_CARRIER);
+            if (!CarrierConfigManager.isConfigForIdentifiedCarrier(b)) return;
+
+            final int[] supportedNrModes = b.getIntArray(
+                    CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY);
+
+            if (ArrayUtils.contains(
+                    supportedNrModes,
+                    CarrierConfigManager.CARRIER_NR_AVAILABILITY_SA)) {
+                mN1ModeDisallowedReasons.remove(N1_MODE_DISALLOWED_REASON_CARRIER);
+            } else {
+                mN1ModeDisallowedReasons.add(N1_MODE_DISALLOWED_REASON_CARRIER);
+            }
         }
 
         if (mModemN1Mode == null) {
@@ -3210,6 +3224,13 @@ public class GsmCdmaPhone extends Phone {
                 }
 
                 mModemN1Mode = (Boolean) ar.result;
+                // The modem only applies SA mode when the radio is powered on: if it comes up
+                // with SA disabled (first boot after a factory reset) and the radio is already
+                // on, enabling it now does nothing until the radio is cycled.
+                if (isNrSaForced() && !mModemN1Mode
+                        && mCi.getRadioState() == TelephonyManager.RADIO_POWER_ON) {
+                    mForcedN1ModeReregisterPending = true;
+                }
                 maybeUpdateModemN1Mode((Message) ar.userObj);
                 break;
 
@@ -3220,6 +3241,14 @@ public class GsmCdmaPhone extends Phone {
                     Rlog.e(LOG_TAG, "Failed to Set N1 Mode", ar.exception);
                     // Set failed, so we have no idea at this point.
                     mModemN1Mode = null;
+                } else if (mForcedN1ModeReregisterPending) {
+                    mForcedN1ModeReregisterPending = false;
+                    if (Boolean.TRUE.equals(mModemN1Mode)
+                            && mCi.getRadioState() == TelephonyManager.RADIO_POWER_ON) {
+                        logd("N1 Mode: enabled while the radio was already on, cycling the radio");
+                        setRadioPower(false);
+                        setRadioPower(true);
+                    }
                 }
                 if (ar != null && ar.userObj instanceof Message) {
                     // original requester's message is stashed in the userObj
