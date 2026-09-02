@@ -1298,6 +1298,30 @@ public class PhoneSwitcher extends Handler {
         }
 
         Message message = Message.obtain(this, EVENT_MODEM_COMMAND_DONE, phoneId);
+        // Some RILs (e.g. Samsung Shannon/Exynos "sitril" on Google Tensor devices) treat a
+        // slot that is not the preferred data modem as "PS service disabled" and persist that
+        // in the modem. With recent modem firmware such a slot can no longer attach to LTE/NR
+        // at all and is stuck on 2G/3G circuit-switched service, so the secondary SIM ends up
+        // with "No service" / "Emergency calls only". HAL_COMMAND_PREFERRED_DATA assumes all
+        // phones are allowed to PS attach, so make that explicit when the device asks for it
+        // (config_dsds_allow_data_all_slots): allow data on every slot, non-preferred slots
+        // first so the RIL's notion of the active data SIM ends up on the preferred data modem.
+        if (mHalCommandToUse == HAL_COMMAND_PREFERRED_DATA && mActiveModemCount > 1
+                && phoneId == mPreferredDataPhoneId
+                && mContext.getResources().getBoolean(
+                        com.android.internal.R.bool.config_dsds_allow_data_all_slots)) {
+            for (int pass = 0; pass < 2; pass++) {
+                for (int i = 0; i < mActiveModemCount; i++) {
+                    boolean preferred = (i == mPreferredDataPhoneId);
+                    if (preferred != (pass == 1)) continue;
+                    Phone phone = PhoneFactory.getPhone(i);
+                    if (phone == null) continue;
+                    logl("sendRilCommands: allow data on all slots, setDataAllowed(true) phoneId="
+                            + i);
+                    phone.mCi.setDataAllowed(true, null);
+                }
+            }
+        }
         if (mHalCommandToUse == HAL_COMMAND_ALLOW_DATA || mHalCommandToUse == HAL_COMMAND_UNKNOWN) {
             // Skip ALLOW_DATA for single SIM device
             if (mActiveModemCount > 1) {
