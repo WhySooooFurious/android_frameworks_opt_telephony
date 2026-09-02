@@ -998,6 +998,14 @@ public class MultiSimSettingController extends Handler {
         if (!isReadyToReevaluate()) return;
 
         int defaultDataSub = mSubscriptionManagerService.getDefaultDataSubId();
+        // No default data subscription has been chosen yet (fresh multi-SIM setup): there is
+        // nothing to protect, and disabling data everywhere would undo what the user just
+        // enabled in the setup wizard. Data on the other subscriptions is disabled once the
+        // default is set (onDefaultDataSettingChanged).
+        if (!SubscriptionManager.isValidSubscriptionId(defaultDataSub)) {
+            log("disableDataForNonDefaultNonOpportunisticSubscriptions: no default data sub yet");
+            return;
+        }
 
         for (Phone phone : PhoneFactory.getPhones()) {
             SubscriptionInfoInternal subInfo = mSubscriptionManagerService
