@@ -26,6 +26,7 @@ import static android.telephony.TelephonyManager.HAL_SERVICE_SIM;
 import static android.telephony.TelephonyManager.HAL_SERVICE_VOICE;
 
 import static com.android.internal.telephony.RILConstants.*;
+import com.android.internal.telephony.seh.SehRadioServices;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -1108,6 +1109,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         mNetworkIndication = new NetworkIndication(this);
         mSimResponse = new SimResponse(this);
         mSimIndication = new SimIndication(this);
+        SehRadioServices.init(this, mPhoneId);
         mVoiceResponse = new VoiceResponse(this);
         mVoiceIndication = new VoiceIndication(this);
         mRilHandler = new RilHandler();
