@@ -220,3 +220,18 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+    name: "enable_phone_number_parsing_api"
+    namespace: "telephony"
+    description: "Enable phone number parsing api"
+    bug:"412560144"
+    is_exported: true
+}
+flag {
+    name: "enable_oem_log_sources_collection"
+    namespace: "telephony"
+    description: "Allow OEMs to collect logs from specified logs sources for e911 calls"
+    bug:"412747188"
+}

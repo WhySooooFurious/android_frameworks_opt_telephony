@@ -54,3 +54,12 @@ flag {
   bug: "357272015"
   is_exported: true
 }
+
+
+flag {
+  name: "ons_thread_consolidation"
+  namespace: "telephony"
+  description: "Consolidate ONS work to a single worker thread"
+  bug: "240081918"
+  is_exported: false
+}

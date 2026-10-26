@@ -177,3 +177,17 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}

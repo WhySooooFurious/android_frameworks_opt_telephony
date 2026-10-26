@@ -47,3 +47,17 @@ flag {
   description: "This flag controls the redirection of SMS_DELIVER AND WAP_PUSH_DELIVER broadcasts to the MAIN user."
   bug: "314321617"
 }
+
+flag {
+  name: "redact_otp_sms"
+  namespace: "telephony"
+  description: "Redact OTP SMS messages from untrusted listeners"
+  bug: "351976749"
+}
+flag {
+  name: "redact_otp_sms_api"
+  is_exported: true
+  namespace: "telephony"
+  description: "API flag for redacting OTP SMS messages from untrusted listeners"
+  bug: "351976749"
+}

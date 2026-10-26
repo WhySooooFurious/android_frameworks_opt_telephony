@@ -103,3 +103,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+  name: "satellite_26q2_apis"
+  namespace: "telephony"
+  description: "This flag controls the changes for the new satellite APIs in 26Q2"
+  bug: "434764963"
+}

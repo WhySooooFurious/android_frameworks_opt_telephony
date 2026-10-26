@@ -68,3 +68,24 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+
+flag {
+  name: "data_service_user_data_toggle_notify"
+  namespace: "telephony"
+  description: "Support notify data services when user data and user data roaming is toggled."
+  bug:"389120182"
+}
+flag {
+    name: "macro_based_opportunistic_networks"
+    is_exported: true
+    namespace: "telephony"
+    description: "This flag enable the macro-based opportunistic networks with auto data switch"
+    bug:"401006757"
+}
+flag {
+  name: "data_service_notify_ims_data_network"
+  namespace: "telephony"
+  description: "Support notifying IMS data network"
+  bug:"389103112"
+}
