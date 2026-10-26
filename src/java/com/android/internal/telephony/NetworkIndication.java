@@ -471,6 +471,11 @@ public class NetworkIndication extends IRadioNetworkIndication.Stub {
     }
 
     @Override
+    public void displayNetworkTypeChanged(int type, int dnt) {
+        // Not implemented; this RIL does not send this indication.
+    }
+
+    @Override
     public int getInterfaceVersion() {
         return IRadioNetworkIndication.VERSION;
     }

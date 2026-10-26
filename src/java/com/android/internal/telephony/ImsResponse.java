@@ -40,6 +40,11 @@ public class ImsResponse extends IRadioImsResponse.Stub {
     }
 
     @Override
+    public void updateAllowedServicesResponse(RadioResponseInfo info) {
+        // Not implemented; this RIL does not expect this response.
+    }
+
+    @Override
     public int getInterfaceVersion() {
         return IRadioImsResponse.VERSION;
     }

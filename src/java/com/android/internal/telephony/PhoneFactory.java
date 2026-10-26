@@ -330,7 +330,7 @@ public class PhoneFactory {
         if (sFeatureFlags.phoneTypeCleanup()) {
             phoneType = PHONE_TYPE_GSM;
         } else {
-            phoneType = TelephonyManager.getPhoneType(RILConstants.PREFERRED_NETWORK_MODE);
+            phoneType = TelephonyManager.getPhoneType();
             // We always use PHONE_TYPE_CDMA_LTE now.
             if (phoneType == PHONE_TYPE_CDMA) phoneType = PHONE_TYPE_CDMA_LTE;
         }

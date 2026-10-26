@@ -236,6 +236,11 @@ public class DataResponse extends IRadioDataResponse.Stub {
     }
 
     @Override
+    public void notifyImsDataNetworkResponse(RadioResponseInfo info) {
+        // Not implemented; this RIL does not expect this response.
+    }
+
+    @Override
     public int getInterfaceVersion() {
         return IRadioDataResponse.VERSION;
     }

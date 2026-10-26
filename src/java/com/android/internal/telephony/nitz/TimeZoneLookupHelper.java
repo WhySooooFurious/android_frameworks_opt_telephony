@@ -281,7 +281,7 @@ public final class TimeZoneLookupHelper {
         if (match == null) {
             return null;
         }
-        return new OffsetResult(match, isOnlyMatch);
+        return new OffsetResult(match, null, isOnlyMatch);
     }
 
     /**
@@ -324,7 +324,7 @@ public final class TimeZoneLookupHelper {
         // be strong consistency across calls.
         synchronized (this) {
             if (mLastCountryTimeZones != null) {
-                if (mLastCountryTimeZones.matchesCountryCode(isoCountryCode)) {
+                if (TextUtils.equals(mLastCountryTimeZones.getCountryIso(), isoCountryCode)) {
                     return mLastCountryTimeZones;
                 }
             }

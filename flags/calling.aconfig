@@ -112,3 +112,11 @@ flag {
     description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
     bug:"439893979"
 }
+
+# OWNER=whysoo TARGET=25Q4
+flag {
+    name: "enable_call_sequencing"
+    namespace: "telephony"
+    description: "Enable call sequencing support in the call manager."
+    bug: "0"
+}

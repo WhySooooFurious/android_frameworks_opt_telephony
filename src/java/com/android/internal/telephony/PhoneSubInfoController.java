@@ -25,6 +25,7 @@ import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
+import android.app.ResultReceiver;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
@@ -883,5 +884,13 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private void loge(String s) {
         Rlog.e(TAG, s);
+    }
+
+    @Override
+    public void getUiccIari(int subId, int appType, String callingPackage, ResultReceiver callback) {
+        // Not supported on this device.
+        if (callback != null) {
+            callback.send(null);
+        }
     }
 }
