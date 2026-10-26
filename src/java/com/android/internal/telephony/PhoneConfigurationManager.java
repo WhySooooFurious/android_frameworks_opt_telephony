@@ -782,7 +782,11 @@ public class PhoneConfigurationManager {
 
         Intent intent = new Intent(ACTION_MULTI_SIM_CONFIG_CHANGED);
         intent.putExtra(EXTRA_ACTIVE_SIM_SUPPORTED_COUNT, numOfActiveModems);
-        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+        if (mFeatureFlags.hsumBroadcast()) {
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+        } else {
+            mContext.sendBroadcast(intent);
+        }
     }
     /**
      * This is invoked from shell commands during CTS testing only.

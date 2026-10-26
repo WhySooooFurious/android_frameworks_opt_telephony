@@ -44,7 +44,7 @@ import java.util.function.Consumer;
  * Internal interface used to control the phone; SDK developers cannot
  * obtain this interface.
  *
- * @hide
+ * {@hide}
  *
  */
 public interface PhoneInternalInterface {
@@ -83,7 +83,6 @@ public interface PhoneInternalInterface {
             protected int mVideoState = VideoProfile.STATE_AUDIO_ONLY;
             protected Bundle mIntentExtras;
             protected int mEccCategory = EmergencyNumber.EMERGENCY_SERVICE_CATEGORY_UNSPECIFIED;
-            protected boolean mSkipFdnCheck = false;
 
             public static DialArgs.Builder from(DialArgs dialArgs) {
                 return new DialArgs.Builder()
@@ -92,8 +91,7 @@ public interface PhoneInternalInterface {
                     .setIsEmergency(dialArgs.isEmergency)
                     .setVideoState(dialArgs.videoState)
                     .setIntentExtras(dialArgs.intentExtras)
-                    .setEccCategory(dialArgs.eccCategory)
-                    .setSkipFdnCheck(dialArgs.skipFdnCheck);
+                    .setEccCategory(dialArgs.eccCategory);
             }
 
             public T setUusInfo(UUSInfo uusInfo) {
@@ -126,12 +124,6 @@ public interface PhoneInternalInterface {
                 return (T) this;
             }
 
-            /** Set argument that decides whether skip the FDN check or not. */
-            public T setSkipFdnCheck(boolean skipFdnCheck) {
-                mSkipFdnCheck = skipFdnCheck;
-                return (T) this;
-            }
-
             public PhoneInternalInterface.DialArgs build() {
                 return new DialArgs(this);
             }
@@ -155,9 +147,6 @@ public interface PhoneInternalInterface {
         /** Indicates emergency service category */
         public final int eccCategory;
 
-        /** Skips FDN check if set */
-        public final boolean skipFdnCheck;
-
         protected DialArgs(Builder b) {
             this.uusInfo = b.mUusInfo;
             this.clirMode = b.mClirMode;
@@ -165,7 +154,6 @@ public interface PhoneInternalInterface {
             this.videoState = b.mVideoState;
             this.intentExtras = b.mIntentExtras;
             this.eccCategory = b.mEccCategory;
-            this.skipFdnCheck = b.mSkipFdnCheck;
         }
     }
 
@@ -1032,6 +1020,16 @@ public interface PhoneInternalInterface {
     /* CDMA support methods */
 
     /**
+     * Retrieves the ESN for CDMA phones.
+     */
+    String getEsn();
+
+    /**
+     * Retrieves MEID for CDMA phones.
+     */
+    String getMeid();
+
+    /**
      * Retrieves IMEI for phones. Returns null if IMEI is not set.
      */
     String getImei();
@@ -1079,8 +1077,7 @@ public interface PhoneInternalInterface {
     *        IMSI and IMPI. This includes the Key type, the Public key
     *        {@link java.security.PublicKey} and the Key identifier.
     */
-    public void setCarrierInfoForImsiEncryption(ImsiEncryptionInfo imsiEncryptionInfo,
-            boolean saveToDb);
+    public void setCarrierInfoForImsiEncryption(ImsiEncryptionInfo imsiEncryptionInfo);
 
     /**
      * Returns Carrier specific information that will be used to encrypt the IMSI and IMPI.

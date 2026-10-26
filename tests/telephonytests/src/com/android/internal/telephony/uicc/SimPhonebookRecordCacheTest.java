@@ -22,49 +22,65 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.os.AsyncResult;
+import android.os.HandlerThread;
 import android.os.Message;
-import android.testing.AndroidTestingRunner;
-import android.testing.TestableLooper;
 
 import com.android.internal.telephony.TelephonyTest;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@RunWith(AndroidTestingRunner.class)
-@TestableLooper.RunWithLooper
 public class SimPhonebookRecordCacheTest extends TelephonyTest {
     private static final int EVENT_PHONEBOOK_RECORDS_RECEIVED = 2;
 
     private SimPhonebookRecordCache mSimPhonebookRecordCacheUt;
+    private SimPhonebookRecordHandler mSimPhonebookRecordHandler;
+
+    private class SimPhonebookRecordHandler extends HandlerThread {
+        SimPhonebookRecordHandler(String name) {
+            super(name);
+        }
+
+        @Override
+        public void onLooperPrepared() {
+            mSimPhonebookRecordCacheUt =
+                    new SimPhonebookRecordCache(mContext, 0, mSimulatedCommands);
+            setReady(true);
+        }
+
+    };
 
     @Before
     public void setUp() throws Exception {
         super.setUp(getClass().getSimpleName());
-        mSimPhonebookRecordCacheUt =
-                new SimPhonebookRecordCache(mContext, 0, mSimulatedCommands);
+        mSimPhonebookRecordHandler = new SimPhonebookRecordHandler(getClass().getSimpleName());
+        mSimPhonebookRecordHandler.start();
+        waitUntilReady();
     }
 
     @After
     public void tearDown() throws Exception {
+        mSimPhonebookRecordHandler.quit();
+        mSimPhonebookRecordHandler.join();
+        mSimPhonebookRecordHandler = null;
+        mSimPhonebookRecordCacheUt = null;
         super.tearDown();
     }
 
     @Test
     public void testSimPhonebookChangedOnBootup() {
         mSimulatedCommands.notifySimPhonebookChanged();
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         AdnCapacity capacity = mSimPhonebookRecordCacheUt.getAdnCapacity();
         AdnCapacity capVerifer = new AdnCapacity(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
         assertNotNull(capacity);
         assertTrue(capVerifer.equals(capacity));
         mSimulatedCommands.notifySimPhonebookChanged();
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         assertTrue(capacity != mSimPhonebookRecordCacheUt.getAdnCapacity());
         assertTrue(capVerifer.equals(capacity));
     }
@@ -73,10 +89,10 @@ public class SimPhonebookRecordCacheTest extends TelephonyTest {
     public void testGetPhonebookRecords() {
         assertFalse(mSimPhonebookRecordCacheUt.isLoading());
         mSimulatedCommands.notifySimPhonebookChanged();
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         assertFalse(mSimPhonebookRecordCacheUt.isLoading());
         mSimPhonebookRecordCacheUt.requestLoadAllPbRecords(null);
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
 
         mSimPhonebookRecordCacheUt.clear();
 
@@ -98,14 +114,14 @@ public class SimPhonebookRecordCacheTest extends TelephonyTest {
         assertFalse(mSimPhonebookRecordCacheUt.isLoading());
         mSimPhonebookRecordCacheUt.requestLoadAllPbRecords(null);
         assertTrue(mSimPhonebookRecordCacheUt.isLoading());
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         assertFalse(mSimPhonebookRecordCacheUt.isLoading());
     }
 
     @Test
     public void testUpdatePhonebookRecord() {
         mSimulatedCommands.notifySimPhonebookChanged();
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         List<AdnRecord> adnRecords = mSimPhonebookRecordCacheUt.getAdnRecords();
         if (mSimPhonebookRecordCacheUt.ENABLE_INFLATE_WITH_EMPTY_RECORDS) {
             assertEquals(adnRecords.size(), 1); // Max ADN from capacity
@@ -117,7 +133,7 @@ public class SimPhonebookRecordCacheTest extends TelephonyTest {
         AdnRecord newAdn = new AdnRecord(IccConstants.EF_ADN, 1, "AB", "123", null, null);
         // add
         mSimPhonebookRecordCacheUt.updateSimPbAdnBySearch(null, newAdn, null);
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         adnRecords = mSimPhonebookRecordCacheUt.getAdnRecords();
         assertEquals(adnRecords.size(), 1);
         AdnRecord oldAdn = adnRecords.get(0);
@@ -127,7 +143,7 @@ public class SimPhonebookRecordCacheTest extends TelephonyTest {
         // update
         newAdn = new AdnRecord(IccConstants.EF_ADN, 1, "ABCD", "123456789", null, null);
         mSimPhonebookRecordCacheUt.updateSimPbAdnBySearch(oldAdn, newAdn, null);
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         adnRecords = mSimPhonebookRecordCacheUt.getAdnRecords();
         assertEquals(adnRecords.size(), 1);
         oldAdn = adnRecords.get(0);
@@ -137,7 +153,7 @@ public class SimPhonebookRecordCacheTest extends TelephonyTest {
         // Delete
         newAdn = new AdnRecord(IccConstants.EF_ADN, 1, null, null, null, null);
         mSimPhonebookRecordCacheUt.updateSimPbAdnBySearch(oldAdn, newAdn, null);
-        processAllMessages();
+        waitForLastHandlerAction(mSimPhonebookRecordCacheUt);
         adnRecords = mSimPhonebookRecordCacheUt.getAdnRecords();
         if (mSimPhonebookRecordCacheUt.ENABLE_INFLATE_WITH_EMPTY_RECORDS) {
             assertEquals(adnRecords.size(), 1);

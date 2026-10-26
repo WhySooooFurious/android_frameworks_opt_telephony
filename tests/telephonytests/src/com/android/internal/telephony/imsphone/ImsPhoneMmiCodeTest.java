@@ -159,6 +159,8 @@ public class ImsPhoneMmiCodeTest extends TelephonyTest {
         doNothing().when(mImsPhone).setCallForwardingOption(
                 anyInt(), anyInt(), any(), anyInt(), anyInt(), any());
 
+        doReturn(true).when(mFeatureFlags).useCarrierConfigForCfnryTimeViaMmi();
+
         int carrierConfigTime = 40;
         PersistableBundle bundle = new PersistableBundle();
         bundle.putInt(CarrierConfigManager
@@ -203,6 +205,8 @@ public class ImsPhoneMmiCodeTest extends TelephonyTest {
     public void testDeactivationCfnrWithCfnry() throws Exception {
         doNothing().when(mImsPhone).setCallForwardingOption(
                 anyInt(), anyInt(), any(), anyInt(), anyInt(), any());
+
+        doReturn(true).when(mFeatureFlags).useCarrierConfigForCfnryTimeViaMmi();
 
         int carrierConfigTime = 40;
         PersistableBundle bundle = new PersistableBundle();

@@ -25,7 +25,6 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
-import android.telephony.AnomalyReporter;
 import android.telephony.TelephonyManager;
 import android.telephony.UiccAccessRule;
 import android.text.TextUtils;
@@ -42,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -53,7 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * Document: https://source.android.com/devices/tech/config/uicc.html
  *
- * @hide
+ * {@hide}
  */
 public class UiccCarrierPrivilegeRules extends Handler {
     private static final String LOG_TAG = "UiccCarrierPrivilegeRules";
@@ -118,9 +116,6 @@ public class UiccCarrierPrivilegeRules extends Handler {
     private static final int RETRY_INTERVAL_MS = 5000;
     private static final int STATUS_CODE_CONDITION_NOT_SATISFIED = 0x6985;
     private static final int STATUS_CODE_APPLET_SELECT_FAILED = 0x6999;
-
-    private static final UUID UNEXPECTED_RESULT_TYPE_UUID =
-            UUID.fromString("c60775d7-463d-4c3e-8212-32b0a2333069");
 
     // Used for parsing the data from the UICC.
     public static class TLV {
@@ -429,19 +424,12 @@ public class UiccCarrierPrivilegeRules extends Handler {
             case EVENT_OPEN_LOGICAL_CHANNEL_DONE:
                 log("EVENT_OPEN_LOGICAL_CHANNEL_DONE");
                 ar = (AsyncResult) msg.obj;
-                if (ar.exception == null && ar.result != null && ar.result instanceof int[]) {
+                if (ar.exception == null && ar.result != null) {
                     mChannelId = ((int[]) ar.result)[0];
                     mUiccProfile.iccTransmitApduLogicalChannel(mChannelId, CLA, COMMAND, P1, P2, P3,
                             DATA, false /*isEs10Command*/, obtainMessage(
                                     EVENT_TRANSMIT_LOGICAL_CHANNEL_DONE, mChannelId, mAIDInUse));
                 } else {
-                    if (ar.result != null && !(ar.result instanceof int[])) {
-                        final String unExpectedError =
-                                "Unexpected result type for EVENT_OPEN_LOGICAL_CHANNEL_DONE : ";
-                        log(unExpectedError + ar.result.getClass().getName());
-                        AnomalyReporter.reportAnomaly(UNEXPECTED_RESULT_TYPE_UUID,
-                                unExpectedError + ar.result.getClass().getName());
-                    }
                     if (shouldRetry(ar, mRetryCount)) {
                         log("should retry");
                         mRetryCount++;

@@ -20,6 +20,7 @@ import static com.android.internal.telephony.TelephonyStatsLog.GBA_EVENT__FAILED
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
+import static junit.framework.Assert.fail;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -38,8 +39,10 @@ import android.content.ServiceConnection;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.telephony.IBootstrapAuthenticationCallback;
 import android.telephony.TelephonyManager;
 import android.telephony.gba.GbaAuthRequest;
@@ -50,6 +53,7 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.util.Log;
 
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.RcsStats;
 
 import org.junit.After;
@@ -99,20 +103,40 @@ public final class GbaManagerTest extends TelephonyTest {
                 .thenReturn(true);
         when(mMockGbaServiceBinder.asBinder()).thenReturn(mMockBinder);
 
-        mTestGbaManager = new GbaManager(
-                mMockContext, TEST_SUB_ID, null, 0, mMockRcsStats,
-                TestableLooper.get(this).getLooper(), mFeatureFlags);
-        monitorTestableLooper(TestableLooper.get(this));
+        if (mFeatureFlags.threadShred()) {
+            mTestGbaManager = new GbaManager(
+                    mMockContext, TEST_SUB_ID, null, 0, mMockRcsStats,
+                    TestableLooper.get(this).getLooper(), mFeatureFlags);
+            monitorTestableLooper(TestableLooper.get(this));
+        } else {
+            if (Looper.myLooper() == null) {
+                Looper.prepare();
+            }
+            mTestGbaManager = new GbaManager(
+                    mMockContext, TEST_SUB_ID, null, 0, mMockRcsStats, null, mFeatureFlags);
+            mHandler = mTestGbaManager.getHandler();
+            try {
+                mLooper = new TestableLooper(mHandler.getLooper());
+            } catch (Exception e) {
+                fail("Unable to create looper from handler.");
+            }
+            monitorTestableLooper(mLooper);
+        }
     }
 
     @After
     public void tearDown() throws Exception {
         log("tearDown");
-        if (mTestGbaManager != null) mTestGbaManager.destroy();
+        if (mFeatureFlags.threadShred()) {
+            if (mTestGbaManager != null) mTestGbaManager.destroy();
+        } else {
+            mTestGbaManager.destroy();
+        }
         super.tearDown();
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testFailOnRequest() throws Exception {
         GbaAuthRequest request = createDefaultRequest();
 
@@ -126,6 +150,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testBindServiceOnRequest() throws Exception {
         mTestGbaManager.overrideServicePackage(TEST_DEFAULT_SERVICE_NAME.getPackageName(), 123);
         GbaAuthRequest request = createDefaultRequest();
@@ -140,6 +165,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testFailAndRetryOnRequest() throws RemoteException {
         when(mMockContext.bindServiceAsUser(any(), any(), anyInt(), any(UserHandle.class)))
                 .thenReturn(false);
@@ -160,6 +186,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testBindServiceWhenPackageNameChanged() {
         mTestGbaManager.overrideServicePackage(TEST_DEFAULT_SERVICE_NAME.getPackageName(), 123);
         mTestGbaManager.overrideReleaseTime(RELEASE_TIME_60S);
@@ -179,6 +206,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testBindServiceWhenReleaseTimeChanged() {
         mTestGbaManager.overrideServicePackage(TEST_DEFAULT_SERVICE_NAME.getPackageName(), 123);
         mTestGbaManager.overrideReleaseTime(RELEASE_NEVER);
@@ -191,6 +219,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testDontBindServiceWhenPackageNameChanged() {
         mTestGbaManager.overrideServicePackage(TEST_SERVICE2_NAME.getPackageName(), 123);
 
@@ -202,6 +231,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testDontBindServiceWhenReleaseTimeChanged() {
         mTestGbaManager.overrideServicePackage(TEST_DEFAULT_SERVICE_NAME.getPackageName(), 123);
         mTestGbaManager.overrideReleaseTime(RELEASE_TIME_60S);
@@ -214,6 +244,7 @@ public final class GbaManagerTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_THREAD_SHRED)
     public void testMetricsGbaEvent() throws Exception {
         mTestGbaManager.overrideServicePackage(TEST_DEFAULT_SERVICE_NAME.getPackageName(), 123);
         mTestGbaManager.overrideReleaseTime(RELEASE_NEVER);

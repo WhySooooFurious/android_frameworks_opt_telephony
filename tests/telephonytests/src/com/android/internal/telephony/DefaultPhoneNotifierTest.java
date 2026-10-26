@@ -387,6 +387,7 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testNotifyCallbackModeStarted() {
+        doReturn(true).when(mFeatureFlags).emergencyCallbackModeNotification();
         int phoneId = mPhone.getPhoneId();
         int subId = mPhone.getSubId();
         int type = 1;
@@ -401,6 +402,7 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testNotifyCallbackModeRestarted() {
+        doReturn(true).when(mFeatureFlags).emergencyCallbackModeNotification();
         int phoneId = mPhone.getPhoneId();
         int subId = mPhone.getSubId();
         int type = 1;
@@ -415,6 +417,7 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testNotifyCallbackModeStopped() {
+        doReturn(true).when(mFeatureFlags).emergencyCallbackModeNotification();
         int phoneId = mPhone.getPhoneId();
         int subId = mPhone.getSubId();
         int type = 1;

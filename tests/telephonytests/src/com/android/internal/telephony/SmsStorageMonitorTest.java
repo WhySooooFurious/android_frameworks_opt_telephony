@@ -173,12 +173,8 @@ public class SmsStorageMonitorTest extends TelephonyTest {
                 new Intent(Intent.ACTION_DEVICE_STORAGE_NOT_FULL));
         processAllMessages();
 
-        // Report memory available to IMS
         verify(mIccSmsInterfaceManager.mDispatchersController)
                 .reportSmsMemoryStatus(any(Message.class));
-
-        // Report memory available to Modem
-        verify(mSimulatedCommandsVerifier).reportSmsMemoryStatus(eq(true), any(Message.class));
     }
 
     @Test @SmallTest

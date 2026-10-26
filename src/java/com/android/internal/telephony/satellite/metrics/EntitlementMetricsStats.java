@@ -25,7 +25,6 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.metrics.SatelliteStats;
 import com.android.internal.telephony.satellite.SatelliteConstants;
-import com.android.internal.telephony.satellite.SatelliteController;
 
 public class EntitlementMetricsStats {
     private static final String TAG = EntitlementMetricsStats.class.getSimpleName();
@@ -39,7 +38,6 @@ public class EntitlementMetricsStats {
     private boolean mIsAllowedServiceEntitlement;
     private int[] mEntitlementServiceType;
     private int mEntitlementDataPolicy;
-    private int mHttpStatusCode;
 
     private EntitlementMetricsStats() {}
 
@@ -69,12 +67,11 @@ public class EntitlementMetricsStats {
         mIsAllowedServiceEntitlement = isAllowedServiceInfo;
         mEntitlementServiceType = serviceType;
         mEntitlementDataPolicy = dataPolicy;
-        mHttpStatusCode = 0;
         reportEntitlementMetrics();
     }
 
     /** Report metrics on entitlement query request error */
-    public void reportError(int subId, int result, boolean isRetry, int httpStatusCode) {
+    public void reportError(int subId, int result, boolean isRetry) {
         mSubId = subId;
         mResult = result;
         mIsRetry = isRetry;
@@ -82,7 +79,6 @@ public class EntitlementMetricsStats {
         mIsAllowedServiceEntitlement = false;
         mEntitlementServiceType = new int[0];
         mEntitlementDataPolicy = SatelliteConstants.SATELLITE_ENTITLEMENT_SERVICE_POLICY_UNKNOWN;
-        mHttpStatusCode = httpStatusCode;
         reportEntitlementMetrics();
     }
 
@@ -98,9 +94,6 @@ public class EntitlementMetricsStats {
                         .setIsAllowedServiceEntitlement(mIsAllowedServiceEntitlement)
                         .setEntitlementServiceType(mEntitlementServiceType)
                         .setEntitlementDataPolicy(mEntitlementDataPolicy)
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(mSubId))
-                        .setHttpStatusCode(mHttpStatusCode)
                         .build();
         SatelliteStats.getInstance().onSatelliteEntitlementMetrics(entitlementParams);
         logd("reportEntitlementMetrics: " + entitlementParams);

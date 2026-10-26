@@ -95,8 +95,6 @@ import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationServ
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationStats;
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationTermination;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
-import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
-import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.PersistAtoms;
@@ -328,7 +326,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
     private SatelliteAccessController mSatelliteAccessController1;
     private SatelliteAccessController mSatelliteAccessController2;
     private SatelliteAccessController[] mSatelliteAccessControllers;
-
 
     private void makeTestData() {
         // MO call with SRVCC (LTE to UMTS)
@@ -1151,7 +1148,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteController1.countOfDatagramTypeKeepAliveFail = 2;
         mSatelliteController1.isProvisioned = true;
         mSatelliteController1.carrierId = 1;
-        mSatelliteController1.supportedConnectionMode = 0;
         mSatelliteController1.countOfSuccessfulLocationQueries = 3;
         mSatelliteController1.countOfFailedLocationQueries = 5;
         mSatelliteController1.countOfP2PSmsAvailableNotificationShown = 3;
@@ -1164,8 +1160,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteController1.countOfOutgoingDatagramTypeSmsFail = 4;
         mSatelliteController1.countOfIncomingDatagramTypeSmsSuccess = 5;
         mSatelliteController1.countOfIncomingDatagramTypeSmsFail = 6;
-        mSatelliteController1.carrierRoamingSatelliteConfigVersion = 19;
-        mSatelliteController1.maxAllowedDataMode = 0;
 
         mSatelliteController2 = new SatelliteController();
         mSatelliteController2.countOfSatelliteServiceEnablementsSuccess = 2 + 1;
@@ -1195,7 +1189,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteController2.countOfDatagramTypeKeepAliveFail = 5;
         mSatelliteController2.isProvisioned = false;
         mSatelliteController2.carrierId = 10;
-        mSatelliteController2.supportedConnectionMode = 0;
         mSatelliteController2.countOfSuccessfulLocationQueries = 30;
         mSatelliteController2.countOfFailedLocationQueries = 50;
         mSatelliteController2.countOfP2PSmsAvailableNotificationShown = 30;
@@ -1208,8 +1201,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteController2.countOfOutgoingDatagramTypeSmsFail = 14;
         mSatelliteController2.countOfIncomingDatagramTypeSmsSuccess = 15;
         mSatelliteController2.countOfIncomingDatagramTypeSmsFail = 16;
-        mSatelliteController2.carrierRoamingSatelliteConfigVersion = 21;
-        mSatelliteController2.maxAllowedDataMode = 1;
 
         // SatelliteController atom has one data point
         mSatelliteControllers =
@@ -1235,8 +1226,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSession1.isDemoMode = false;
         mSatelliteSession1.maxNtnSignalStrengthLevel = 2;
         mSatelliteSession1.carrierId = 2;
-        mSatelliteSession1.supportedConnectionMode = 0;
-        mSatelliteSession1.sessionConnectionMode = 0;
         mSatelliteSession1.countOfSatelliteNotificationDisplayed = 4;
         mSatelliteSession1.countOfAutoExitDueToScreenOff = 6;
         mSatelliteSession1.countOfAutoExitDueToTnNetwork = 7;
@@ -1261,8 +1250,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSession2.isDemoMode = true;
         mSatelliteSession2.maxNtnSignalStrengthLevel = 4;
         mSatelliteSession2.carrierId = 20;
-        mSatelliteSession2.supportedConnectionMode = 0;
-        mSatelliteSession2.sessionConnectionMode = 0;
         mSatelliteSession2.countOfSatelliteNotificationDisplayed = 40;
         mSatelliteSession2.countOfAutoExitDueToScreenOff = 60;
         mSatelliteSession2.countOfAutoExitDueToTnNetwork = 70;
@@ -1280,8 +1267,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteIncomingDatagram1.datagramTransferTimeMillis = 3 * 1000;
         mSatelliteIncomingDatagram1.isDemoMode = false;
         mSatelliteIncomingDatagram1.carrierId = 1;
-        mSatelliteIncomingDatagram1.supportedConnectionMode = 0;
-        mSatelliteIncomingDatagram1.sessionConnectionMode = 0;
 
         mSatelliteIncomingDatagram2 = new SatelliteIncomingDatagram();
         mSatelliteIncomingDatagram2.resultCode = SatelliteProtoEnums.SATELLITE_RESULT_MODEM_ERROR;
@@ -1289,8 +1274,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteIncomingDatagram2.datagramTransferTimeMillis = 1 * 1000;
         mSatelliteIncomingDatagram2.isDemoMode = true;
         mSatelliteIncomingDatagram2.carrierId = 10;
-        mSatelliteIncomingDatagram2.supportedConnectionMode = 0;
-        mSatelliteIncomingDatagram2.sessionConnectionMode = 0;
 
         mSatelliteIncomingDatagrams =
                 new SatelliteIncomingDatagram[] {
@@ -1305,8 +1288,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteOutgoingDatagram1.datagramTransferTimeMillis = 3 * 1000;
         mSatelliteOutgoingDatagram1.isDemoMode = false;
         mSatelliteOutgoingDatagram1.carrierId = 1;
-        mSatelliteOutgoingDatagram1.supportedConnectionMode = 0;
-        mSatelliteOutgoingDatagram1.sessionConnectionMode = 0;
 
         mSatelliteOutgoingDatagram2 = new SatelliteOutgoingDatagram();
         mSatelliteOutgoingDatagram2.datagramType =
@@ -1316,8 +1297,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteOutgoingDatagram2.datagramTransferTimeMillis = 1 * 1000;
         mSatelliteOutgoingDatagram2.isDemoMode = true;
         mSatelliteOutgoingDatagram2.carrierId = 10;
-        mSatelliteOutgoingDatagram2.supportedConnectionMode = 0;
-        mSatelliteOutgoingDatagram2.sessionConnectionMode = 0;
 
         mSatelliteOutgoingDatagrams =
                 new SatelliteOutgoingDatagram[] {
@@ -1330,7 +1309,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteProvision1.isProvisionRequest = true;
         mSatelliteProvision1.isCanceled = false;
         mSatelliteProvision1.carrierId = 1;
-        mSatelliteProvision1.supportedConnectionMode = 0;
 
         mSatelliteProvision2 = new SatelliteProvision();
         mSatelliteProvision2.resultCode =
@@ -1339,7 +1317,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteProvision2.isProvisionRequest = false;
         mSatelliteProvision2.isCanceled = true;
         mSatelliteProvision2.carrierId = 10;
-        mSatelliteProvision2.supportedConnectionMode = 0;
 
         mSatelliteProvisions =
                 new SatelliteProvision[] {
@@ -1357,8 +1334,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSosMessageRecommender1.isSatelliteAllowedInCurrentLocation = true;
         mSatelliteSosMessageRecommender1.isWifiConnected = true;
         mSatelliteSosMessageRecommender1.carrierId = 1;
-        mSatelliteSosMessageRecommender1.supportedConnectionMode = 0;
-        mSatelliteSosMessageRecommender1.sessionConnectionMode = 0;
         mSatelliteSosMessageRecommender1.count = 1;
 
         mSatelliteSosMessageRecommender2 = new SatelliteSosMessageRecommender();
@@ -1372,8 +1347,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSosMessageRecommender2.isSatelliteAllowedInCurrentLocation = true;
         mSatelliteSosMessageRecommender2.isWifiConnected = false;
         mSatelliteSosMessageRecommender2.carrierId = 2;
-        mSatelliteSosMessageRecommender2.supportedConnectionMode = 0;
-        mSatelliteSosMessageRecommender2.sessionConnectionMode = 0;
 
         mSatelliteSosMessageRecommender2.count = 1;
 
@@ -1384,8 +1357,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
 
         mCarrierRoamingSatelliteSession1 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession1.carrierId = 1;
-        mCarrierRoamingSatelliteSession1.supportedConnectionMode = 0;
-        mCarrierRoamingSatelliteSession1.sessionConnectionMode = 0;
         mCarrierRoamingSatelliteSession1.isNtnRoamingInHomeCountry = false;
         mCarrierRoamingSatelliteSession1.totalSatelliteModeTimeSec = 60;
         mCarrierRoamingSatelliteSession1.numberOfSatelliteConnections = 3;
@@ -1406,8 +1377,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
 
         mCarrierRoamingSatelliteSession2 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession2.carrierId = 2;
-        mCarrierRoamingSatelliteSession2.supportedConnectionMode = 0;
-        mCarrierRoamingSatelliteSession2.sessionConnectionMode = 0;
         mCarrierRoamingSatelliteSession2.isNtnRoamingInHomeCountry = true;
         mCarrierRoamingSatelliteSession2.totalSatelliteModeTimeSec = 120;
         mCarrierRoamingSatelliteSession2.numberOfSatelliteConnections = 5;
@@ -1439,9 +1408,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteControllerStats1.satelliteSessionGapAvgSec = 3;
         mCarrierRoamingSatelliteControllerStats1.satelliteSessionGapMaxSec = 4;
         mCarrierRoamingSatelliteControllerStats1.carrierId = 1;
-        mCarrierRoamingSatelliteControllerStats1.supportedConnectionMode = 0;
-        mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeAutomatic = 1;
-        mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeManual = 0;
         mCarrierRoamingSatelliteControllerStats1.isDeviceEntitled = true;
         mCarrierRoamingSatelliteControllerStats1.isMultiSim = false;
         mCarrierRoamingSatelliteControllerStats1.countOfSatelliteSessions = 1;
@@ -1457,9 +1423,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteControllerStats2.satelliteSessionGapAvgSec = 10;
         mCarrierRoamingSatelliteControllerStats2.satelliteSessionGapMaxSec = 15;
         mCarrierRoamingSatelliteControllerStats2.carrierId = 10;
-        mCarrierRoamingSatelliteControllerStats2.supportedConnectionMode = 0;
-        mCarrierRoamingSatelliteControllerStats2.countOfSessionConnectionModeAutomatic = 1;
-        mCarrierRoamingSatelliteControllerStats2.countOfSessionConnectionModeManual = 1;
         mCarrierRoamingSatelliteControllerStats2.isDeviceEntitled = false;
         mCarrierRoamingSatelliteControllerStats2.isMultiSim = true;
         mCarrierRoamingSatelliteControllerStats2.countOfSatelliteSessions = 2;
@@ -1471,23 +1434,19 @@ public class PersistAtomsStorageTest extends TelephonyTest {
 
         mSatelliteEntitlement1 = new SatelliteEntitlement();
         mSatelliteEntitlement1.carrierId = 1;
-        mSatelliteEntitlement1.supportedConnectionMode = 0;
         mSatelliteEntitlement1.result = 0;
         mSatelliteEntitlement1.entitlementStatus =
                 SatelliteProtoEnums.SATELLITE_ENTITLEMENT_STATUS_ENABLED;
         mSatelliteEntitlement1.isRetry = false;
         mSatelliteEntitlement1.count = 1;
-        mSatelliteEntitlement1.httpStatusCode = 404;
 
         mSatelliteEntitlement2 = new SatelliteEntitlement();
         mSatelliteEntitlement2.carrierId = 2;
-        mSatelliteEntitlement2.supportedConnectionMode = 0;
         mSatelliteEntitlement2.result = 1;
         mSatelliteEntitlement2.entitlementStatus =
                 SatelliteProtoEnums.SATELLITE_ENTITLEMENT_STATUS_DISABLED;
         mSatelliteEntitlement2.isRetry = true;
         mSatelliteEntitlement2.count = 1;
-        mSatelliteEntitlement2.httpStatusCode = 500;
 
         mSatelliteEntitlements = new SatelliteEntitlement[] {mSatelliteEntitlement1,
                 mSatelliteEntitlement2};
@@ -1521,9 +1480,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteAccessController1.countryCodes = new String[]{"AB", "CD"};
         mSatelliteAccessController1.configDataSource = CONFIG_DATA_SOURCE_DEVICE_CONFIG;
         mSatelliteAccessController1.carrierId = 1;
-        mSatelliteAccessController1.supportedConnectionMode = 0;
-        mSatelliteAccessController1.sessionConnectionMode = 0;
-
 
         mSatelliteAccessController2 = new SatelliteAccessController();
         mSatelliteAccessController2.accessControlType = ACCESS_CONTROL_TYPE_CURRENT_LOCATION;
@@ -1536,8 +1492,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteAccessController2.countryCodes = new String[]{"EF", "GH"};
         mSatelliteAccessController2.configDataSource = CONFIG_DATA_SOURCE_CONFIG_UPDATER;
         mSatelliteAccessController2.carrierId = 10;
-        mSatelliteAccessController2.supportedConnectionMode = 0;
-        mSatelliteAccessController2.sessionConnectionMode = 0;
 
         mSatelliteAccessControllers = new SatelliteAccessController[]{
                 mSatelliteAccessController1, mSatelliteAccessController2
@@ -4536,10 +4490,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 mSatelliteController1.countOfIncomingDatagramTypeSmsSuccess * 2;
         expected.countOfIncomingDatagramTypeSmsFail =
                 mSatelliteController1.countOfIncomingDatagramTypeSmsFail * 2;
-        expected.carrierRoamingSatelliteConfigVersion =
-                mSatelliteController1.carrierRoamingSatelliteConfigVersion;
-        expected.maxAllowedDataMode = mSatelliteController1.maxAllowedDataMode;
-        expected.supportedConnectionMode = mSatelliteController1.supportedConnectionMode;
 
         // Service state and service switch should be added successfully
         verifyCurrentStateSavedToFileOnce();
@@ -4712,10 +4662,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         expected.countOfIncomingDatagramTypeSmsFail =
                 mSatelliteController1.countOfIncomingDatagramTypeSmsFail
                         + mSatelliteController2.countOfIncomingDatagramTypeSmsFail;
-        expected.carrierRoamingSatelliteConfigVersion =
-                mSatelliteController2.carrierRoamingSatelliteConfigVersion;
-        expected.maxAllowedDataMode = mSatelliteController2.maxAllowedDataMode;
-        expected.supportedConnectionMode = mSatelliteController2.supportedConnectionMode;
 
         // Service state and service switch should be added successfully
         verifyCurrentStateSavedToFileOnce();
@@ -5264,16 +5210,10 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         expected.satelliteSessionGapMaxSec =
                 mCarrierRoamingSatelliteControllerStats1.satelliteSessionGapMaxSec;
         expected.carrierId = mCarrierRoamingSatelliteControllerStats1.carrierId;
-        expected.supportedConnectionMode =
-                mCarrierRoamingSatelliteControllerStats1.supportedConnectionMode;
         expected.isDeviceEntitled = mCarrierRoamingSatelliteControllerStats1.isDeviceEntitled;
         expected.isMultiSim = mCarrierRoamingSatelliteControllerStats1.isMultiSim;
         expected.countOfSatelliteSessions =
                 mCarrierRoamingSatelliteControllerStats1.countOfSatelliteSessions * 2;
-        expected.countOfSessionConnectionModeAutomatic =
-                mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeAutomatic * 2;
-        expected.countOfSessionConnectionModeManual =
-                mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeManual * 2;
         verifyCurrentStateSavedToFileOnce();
         CarrierRoamingSatelliteControllerStats[] output =
                 mPersistAtomsStorage.getCarrierRoamingSatelliteControllerStats(0L);
@@ -5669,162 +5609,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         DataNetworkValidation[] output =
                 mPersistAtomsStorage.getDataNetworkValidation(0L);
         assertTrue(output.length <= maxNumDataNetworkValidation);
-    }
-
-    @Test
-    public void addOtpEvaluationEvent_newEntry() throws Exception {
-        // Set up
-        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
-        createEmptyTestFile();
-
-        OtpEvaluationEvent event = createOtpEvaluationEvent(0, 1);
-        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
-        mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(0, 1));
-        mPersistAtomsStorage.incTimeMillis(100L);
-
-        // There should be 1 OtpEvaluationEvent
-        verifyCurrentStateSavedToFileOnce();
-        OtpEvaluationEvent[] output = mPersistAtomsStorage.getOtpEvaluationEventStats(0L);
-        assertProtoArrayEqualsIgnoringOrder(new OtpEvaluationEvent[] { event }, output);
-    }
-
-    @Test
-    public void addOtpEvaluationEvent_tooMany_doesntEjectMaximums() throws Exception {
-        // Set up
-        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
-        createEmptyTestFile();
-
-        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
-        // Current maximum OTP events is 100.
-        int maxNumOtpEvents = 100;
-        int maxTime = 1;
-        // Log 99 events, each with their own result
-        for (int i = 0; i < maxNumOtpEvents - 1; i++) {
-            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(i, maxTime));
-        }
-        int testTime = 0;
-        // Add 10 events, each with different results, and a lower redaction time than the previous
-        // 99
-        for (int i = 0; i < maxNumOtpEvents / 10; i++) {
-            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(i, testTime));
-        }
-
-        // There should be only one event with the "testTime" redactionTime
-        int numNonMaxTimeEvents = 0;
-        for (OtpEvaluationEvent event : mPersistAtomsStorage.getOtpEvaluationEventStats(0)) {
-            if (event.redactionTimeMs == testTime) {
-                numNonMaxTimeEvents++;
-            }
-        }
-        assertEquals("Expected only one event with time 0 to remain", 1, numNonMaxTimeEvents);
-    }
-
-    @Test
-    public void addOtpEvaluationEvent_asManyResultsAsSpace_ejectsRandomly() throws Exception {
-        // Set up
-        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
-        createEmptyTestFile();
-
-        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
-        // Current maximum OTP events is 100.
-        int maxNumOtpEvents = 100;
-        int maxTime = 1;
-        // Log 100 events, each with their own result
-        for (int i = 0; i < maxNumOtpEvents; i++) {
-            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(i, maxTime));
-        }
-        int testTime = 0;
-        // Add 10 events, each with a lower redaction time than the previous 99
-        for (int i = 0; i < maxNumOtpEvents / 10; i++) {
-            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(1, testTime));
-        }
-
-        // There should be only one event with the "testTime" redactionTime, since we're ejecting
-        // one maximum, leaving one space with a non-maximum value, which will be repeatedly filled
-        int numNonMaxTimeEvents = 0;
-        for (OtpEvaluationEvent event : mPersistAtomsStorage.getOtpEvaluationEventStats(0)) {
-            if (event.redactionTimeMs == testTime) {
-                numNonMaxTimeEvents++;
-            }
-        }
-        assertEquals("Expected only one event with time 0 to remain", 1, numNonMaxTimeEvents);
-    }
-
-    private OtpEvaluationEvent createOtpEvaluationEvent(int result, int redactionTime) {
-        OtpEvaluationEvent event = new OtpEvaluationEvent();
-        event.result = result;
-        event.redactionTimeMs = redactionTime;
-        return event;
-    }
-
-    @Test
-    public void addOtpRedactionEvent_newEntry() throws Exception {
-        // Set up
-        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
-        createEmptyTestFile();
-
-        OtpRedactionEvent event = createOtpRedactionEvent(0, 1);
-        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
-        mPersistAtomsStorage.addOtpRedactionEvent(createOtpRedactionEvent(0, 1));
-        mPersistAtomsStorage.incTimeMillis(100L);
-
-        // There should be 1 OtpRedactionEvent
-        verifyCurrentStateSavedToFileOnce();
-        OtpRedactionEvent[] output = mPersistAtomsStorage.getOtpRedactionEventStats(0L);
-        assertProtoArrayEqualsIgnoringOrder(new OtpRedactionEvent[] { event }, output);
-    }
-
-    @Test
-    public void addOtpRedactionEvent_incrementCountForExistingUid() throws Exception {
-        // Set up
-        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
-        createEmptyTestFile();
-
-        OtpRedactionEvent event = createOtpRedactionEvent(0, 1);
-        OtpRedactionEvent event2 = createOtpRedactionEvent(0, 2);
-        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
-        mPersistAtomsStorage.addOtpRedactionEvent(event);
-        mPersistAtomsStorage.addOtpRedactionEvent(event);
-        mPersistAtomsStorage.incTimeMillis(100L);
-
-        // There should be one event, with a count of 2
-        OtpRedactionEvent[] output = mPersistAtomsStorage.getOtpRedactionEventStats(0L);
-        assertProtoArrayEqualsIgnoringOrder(new OtpRedactionEvent[] { event2 }, output);
-    }
-
-    @Test
-    public void addOtpRedactionEvent_newUidWhenArrayFull_replacesOld() throws Exception {
-        // Set up
-        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
-        createEmptyTestFile();
-
-        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
-        // Current maximum OTP events is 100.
-        int maxNumOtpEvents = 100;
-        int maxTime = 1;
-        // Log 99 events, each with their own result
-        for (int i = 0; i < maxNumOtpEvents; i++) {
-            mPersistAtomsStorage.addOtpRedactionEvent(createOtpRedactionEvent(i, 1));
-        }
-        mPersistAtomsStorage.addOtpRedactionEvent(createOtpRedactionEvent(maxNumOtpEvents + 1, 1));
-
-        // The most recent event should be present
-        boolean foundLast = false;
-        OtpRedactionEvent[] events = mPersistAtomsStorage.getOtpRedactionEventStats(0);
-        assertEquals("Expected 100 events", maxNumOtpEvents, events.length);
-        for (OtpRedactionEvent event : events) {
-            if (event.uid == maxNumOtpEvents + 1) {
-                foundLast = true;
-            }
-        }
-        assertTrue("Expected the 101st event added to be present", foundLast);
-    }
-
-    private OtpRedactionEvent createOtpRedactionEvent(int uid, int count) {
-        OtpRedactionEvent event = new OtpRedactionEvent();
-        event.uid = uid;
-        event.count = count;
-        return event;
     }
 
     @Test
@@ -6266,8 +6050,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         for (SatelliteController stats : tested) {
             if (expectedStats.carrierId == stats.carrierId
                     && expectedStats.isProvisioned == stats.isProvisioned
-                    && expectedStats.isNtnOnlyCarrier == stats.isNtnOnlyCarrier
-                    && expectedStats.supportedConnectionMode == stats.supportedConnectionMode) {
+                    && expectedStats.isNtnOnlyCarrier == stats.isNtnOnlyCarrier) {
                 assertEquals(expectedStats.countOfSatelliteServiceEnablementsSuccess,
                         stats.countOfSatelliteServiceEnablementsSuccess);
                 assertEquals(expectedStats.countOfSatelliteServiceEnablementsFail,
@@ -6341,10 +6124,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                         stats.countOfIncomingDatagramTypeSmsSuccess);
                 assertEquals(expectedStats.countOfIncomingDatagramTypeSmsFail,
                         stats.countOfIncomingDatagramTypeSmsFail);
-                assertEquals(expectedStats.carrierRoamingSatelliteConfigVersion,
-                        stats.carrierRoamingSatelliteConfigVersion);
-                assertEquals(expectedStats.maxAllowedDataMode, stats.maxAllowedDataMode);
-                assertEquals(expectedStats.supportedConnectionMode, stats.supportedConnectionMode);
                 actualCount++;
             }
         }
@@ -6384,9 +6163,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.countOfAutoExitDueToTnNetwork
                             == expectedStats.countOfAutoExitDueToTnNetwork
                     && stats.isEmergency == expectedStats.isEmergency
-                    && stats.maxInactivityDurationSec == expectedStats.maxInactivityDurationSec
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.maxInactivityDurationSec == expectedStats.maxInactivityDurationSec) {
                 actualCount = stats.count;
             }
         }
@@ -6404,9 +6181,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.datagramTransferTimeMillis
                         == expectedStats.datagramTransferTimeMillis
                     && stats.isDemoMode == expectedStats.isDemoMode
-                    && stats.carrierId == expectedStats.carrierId
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.carrierId == expectedStats.carrierId) {
                 actualCount++;
             }
         }
@@ -6425,9 +6200,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.datagramTransferTimeMillis
                         == expectedStats.datagramTransferTimeMillis
                     && stats.isDemoMode == expectedStats.isDemoMode
-                    && stats.carrierId == expectedStats.carrierId
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.carrierId == expectedStats.carrierId) {
                 actualCount++;
             }
         }
@@ -6444,8 +6217,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.provisioningTimeSec == expectedStats.provisioningTimeSec
                     && stats.isProvisionRequest == expectedStats.isProvisionRequest
                     && stats.isCanceled == expectedStats.isCanceled
-                    && stats.carrierId == expectedStats.carrierId
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode) {
+                    && stats.carrierId == expectedStats.carrierId) {
                 actualCount++;
             }
         }
@@ -6468,9 +6240,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.isSatelliteAllowedInCurrentLocation
                     == expectedStats.isSatelliteAllowedInCurrentLocation
                     && stats.isWifiConnected == expectedStats.isWifiConnected
-                    && stats.carrierId == expectedStats.carrierId
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.carrierId == expectedStats.carrierId) {
                 actualCount = stats.count;
             }
         }
@@ -6493,9 +6263,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.resultCode == expectedStats.resultCode
                     && Arrays.equals(stats.countryCodes, expectedStats.countryCodes)
                     && stats.configDataSource == expectedStats.configDataSource
-                    && stats.carrierId == expectedStats.carrierId
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.carrierId == expectedStats.carrierId) {
                 actualCount++;
             }
         }
@@ -6737,9 +6505,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.countOfIncomingMms == expectedStats.countOfIncomingMms
                     && stats.countOfOutgoingMms == expectedStats.countOfOutgoingMms
                     && stats.isMultiSim == expectedStats.isMultiSim
-                    && stats.isNbIotNtn == expectedStats.isNbIotNtn
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.isNbIotNtn == expectedStats.isNbIotNtn) {
                 actualCount++;
             }
         }
@@ -6751,8 +6517,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         assertNotNull(tested);
         int count = 0;
         for (CarrierRoamingSatelliteControllerStats stats : tested) {
-            if (expectedStats.carrierId == stats.carrierId
-                    && expectedStats.supportedConnectionMode == stats.supportedConnectionMode) {
+            if (expectedStats.carrierId == stats.carrierId) {
                 assertEquals(expectedStats.configDataSource, stats.configDataSource);
                 assertEquals(expectedStats.countOfEntitlementStatusQueryRequest,
                         stats.countOfEntitlementStatusQueryRequest);
@@ -6770,10 +6535,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 assertEquals(expectedStats.isMultiSim, stats.isMultiSim);
                 assertEquals(expectedStats.countOfSatelliteSessions,
                         stats.countOfSatelliteSessions);
-                assertEquals(expectedStats.countOfSessionConnectionModeManual,
-                        stats.countOfSessionConnectionModeManual);
-                assertEquals(expectedStats.countOfSessionConnectionModeAutomatic,
-                        stats.countOfSessionConnectionModeAutomatic);
                 assertEquals(expectedStats.isNbIotNtn, stats.isNbIotNtn);
                 count++;
             }
@@ -6790,8 +6551,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
             if (stats.carrierId == expectedStats.carrierId
                     && stats.result == expectedStats.result
                     && stats.entitlementStatus == expectedStats.entitlementStatus
-                    && stats.isRetry == expectedStats.isRetry
-                    && stats.supportedConnectionMode == expectedStats.supportedConnectionMode) {
+                    && stats.isRetry == expectedStats.isRetry) {
                 actualCount = stats.count;
             }
         }

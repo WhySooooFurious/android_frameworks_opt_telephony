@@ -23,19 +23,22 @@ import android.os.Handler;
 import android.os.Message;
 import android.telephony.Rlog;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.RadioInterfaceCapabilityController;
-import com.android.internal.telephony.flags.Flags;
+import com.android.internal.telephony.uicc.AdnCapacity;
+import com.android.internal.telephony.uicc.IccConstants;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -47,7 +50,7 @@ import java.util.stream.Collectors;
  *   <li>The device does not support
  * {@link android.telephony.TelephonyManager#CAPABILITY_SIM_PHONEBOOK_IN_MODEM}.</li>
  * </ol>
- * @hide
+ * {@hide}
  */
 @RequiresFeature(
         enforcement = "android.telephony.TelephonyManager#isRadioInterfaceCapabilitySupported",
@@ -440,9 +443,6 @@ public class SimPhonebookRecordCache extends Handler {
                 mIsCacheInvalidated.set(true);
                 fillCacheWithoutWaiting();
             } else if (newCapacity.isSimValid()) {
-                if(Flags.simPhonebookCacheFix()) {
-                    mIsCacheInvalidated.set(false);
-                }
                 notifyAdnLoadingWaiters();
                 tryFireUpdatePendingList();
             } else {

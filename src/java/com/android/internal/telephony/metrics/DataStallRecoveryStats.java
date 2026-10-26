@@ -34,6 +34,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.PersistableBundle;
 import android.os.SystemClock;
 import android.telephony.AccessNetworkConstants;
@@ -139,7 +140,15 @@ public class DataStallRecoveryStats {
         mTag = TAG + phone.getPhoneId();
         mPhone = phone;
         mFeatureFlags = featureFlags;
-        mHandler = new Handler(BackgroundThread.get().getLooper());
+
+        if (mFeatureFlags.threadShred()) {
+            mHandler = new Handler(BackgroundThread.get().getLooper());
+        } else {
+            HandlerThread handlerThread = new HandlerThread(mTag + "-thread");
+            handlerThread.start();
+            mHandler = new Handler(handlerThread.getLooper());
+        }
+
         mTelephonyManager = mPhone.getContext().getSystemService(TelephonyManager.class);
 
         dataNetworkController.registerDataNetworkControllerCallback(

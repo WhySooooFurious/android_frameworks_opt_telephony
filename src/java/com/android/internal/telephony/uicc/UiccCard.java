@@ -37,11 +37,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 /**
- * @hide
+ * {@hide}
  */
 public class UiccCard {
     protected static final String LOG_TAG = "UiccCard";
     protected static final boolean DBG = true;
+
     public static final String EXTRA_ICC_CARD_ADDED =
             "com.android.internal.telephony.uicc.ICC_CARD_ADDED";
 
@@ -59,7 +60,7 @@ public class UiccCard {
 
     public UiccCard(Context c, CommandsInterface ci, IccCardStatus ics, int phoneId, Object lock,
             MultipleEnabledProfilesMode supportedMepMode) {
-        if (DBG) log("Creating UiccCard for phoneId:" + phoneId + " CardState:" + ics.mCardState);
+        if (DBG) log("Creating");
         mCardState = ics.mCardState;
         mLock = lock;
         mSupportedMepMode = supportedMepMode;
@@ -89,16 +90,11 @@ public class UiccCard {
      */
     public void disposePort(int portIndex) {
         synchronized (mLock) {
+            if (DBG) log("Disposing port for index " + portIndex);
             UiccPort port = getUiccPort(portIndex);
             if (port != null) {
                 mPhoneIdToPortIdx.remove(port.getPhoneId());
-                if (DBG) {
-                    log("Disposing port for index " + portIndex + " on PhoneId : "
-                            + port.getPhoneId());
-                }
                 port.dispose();
-            } else {
-                if (DBG) log("Disposing port for index " + portIndex + " , But port is null");
             }
             mUiccPorts.remove(portIndex);
         }
@@ -163,10 +159,6 @@ public class UiccCard {
     @UnsupportedAppUsage
     public CardState getCardState() {
         synchronized (mLock) {
-            if (DBG) {
-                log("cardId = " + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mCardId)
-                                + " CardState = " + mCardState);
-            }
             return mCardState;
         }
     }

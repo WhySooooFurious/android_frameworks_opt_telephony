@@ -37,6 +37,7 @@ import android.annotation.NonNull;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Looper;
@@ -89,10 +90,9 @@ public class MultiSimSettingController extends Handler {
     private static final int EVENT_SUBSCRIPTION_GROUP_CHANGED        = 5;
     private static final int EVENT_DEFAULT_DATA_SUBSCRIPTION_CHANGED = 6;
     @VisibleForTesting
-    public static final int EVENT_MULTI_SIM_CONFIG_CHANGED           = 8;
+    public static final int EVENT_MULTI_SIM_CONFIG_CHANGED          = 8;
     @VisibleForTesting
     public static final int EVENT_RADIO_STATE_CHANGED                = 9;
-    private static final int EVENT_PROVISIONED_CHANGED               = 10;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = {"PRIMARY_SUB_"},
@@ -128,7 +128,6 @@ public class MultiSimSettingController extends Handler {
 
     protected final Context mContext;
     private final SubscriptionManagerService mSubscriptionManagerService;
-    private final SettingsObserver mSettingsObserver;
     private final @NonNull FeatureFlags mFeatureFlags;
 
     // Keep a record of active primary (non-opportunistic) subscription list.
@@ -230,7 +229,6 @@ public class MultiSimSettingController extends Handler {
     public MultiSimSettingController(Context context, @NonNull FeatureFlags featureFlags) {
         mContext = context;
         mSubscriptionManagerService = SubscriptionManagerService.getInstance();
-        mSettingsObserver = new SettingsObserver(context, this);
         mFeatureFlags = featureFlags;
 
         // Initialize mCarrierConfigLoadedSubIds and register to listen to carrier config change.
@@ -244,9 +242,6 @@ public class MultiSimSettingController extends Handler {
 
         PhoneConfigurationManager.registerForMultiSimConfigChange(
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);
-
-        mSettingsObserver.observe(Settings.Global.getUriFor(Settings.Global.DEVICE_PROVISIONED),
-                EVENT_PROVISIONED_CHANGED);
 
         mIsAskEverytimeSupportedForSms = mContext.getResources()
                 .getBoolean(com.android.internal.R.bool.config_sms_ask_every_time_support);
@@ -263,15 +258,21 @@ public class MultiSimSettingController extends Handler {
     }
 
     private boolean hasCalling() {
-        return TelephonyCapabilities.supportsTelephonyCalling(mFeatureFlags, mContext);
+        if (!TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) return true;
+        return mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_TELEPHONY_CALLING);
     }
 
     private boolean hasData() {
-        return TelephonyCapabilities.supportsTelephonyData(mFeatureFlags, mContext);
+        if (!TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) return true;
+        return mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_TELEPHONY_DATA);
     }
 
     private boolean hasMessaging() {
-        return TelephonyCapabilities.supportsTelephonyMessaging(mFeatureFlags, mContext);
+        if (!TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) return true;
+        return mContext.getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_TELEPHONY_MESSAGING);
     }
 
     /**
@@ -367,9 +368,6 @@ public class MultiSimSettingController extends Handler {
                         break;
                     }
                 }
-                break;
-            case EVENT_PROVISIONED_CHANGED:
-                disableDataForNonDefaultNonOpportunisticSubscriptions();
                 break;
         }
     }
@@ -792,7 +790,11 @@ public class MultiSimSettingController extends Handler {
         intent.putExtra(EXTRA_DEFAULT_SUBSCRIPTION_SELECT_TYPE, type);
         intent.putExtra(EXTRA_SUBSCRIPTION_ID, defaultSubId);
 
-        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+        if (mFeatureFlags.hsumBroadcast()) {
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+        } else {
+            mContext.sendBroadcast(intent);
+        }
     }
 
     private void sendSubChangeNotificationIfNeeded(int change, boolean dataSelected,
@@ -830,7 +832,11 @@ public class MultiSimSettingController extends Handler {
             if (simCombinationParams.mWarningType == EXTRA_SIM_COMBINATION_WARNING_TYPE_DUAL_CDMA) {
                 intent.putExtra(EXTRA_SIM_COMBINATION_NAMES, simCombinationParams.mSimNames);
             }
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+            if (mFeatureFlags.hsumBroadcast()) {
+                mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+            } else {
+                mContext.sendBroadcast(intent);
+            }
         }
     }
 
@@ -986,6 +992,33 @@ public class MultiSimSettingController extends Handler {
         // If it's no primary SIM change or it's not user visible change
         // (initialized or swapped in a group), no SIM combination warning is needed.
         if (!isUserVisibleChange(change)) return params;
+
+        List<String> simNames = new ArrayList<>();
+        int cdmaPhoneCount = 0;
+        for (int subId : mPrimarySubList) {
+            Phone phone = PhoneFactory.getPhone(SubscriptionManager.getPhoneId(subId));
+            // If a dual CDMA SIM combination warning is needed.
+            if (phone != null && phone.isCdmaSubscriptionAppPresent()) {
+                cdmaPhoneCount++;
+                String simName = null;
+                SubscriptionInfoInternal subInfo = mSubscriptionManagerService
+                        .getSubscriptionInfoInternal(subId);
+                if (subInfo != null) {
+                    simName = subInfo.getDisplayName();
+                }
+                if (TextUtils.isEmpty(simName)) {
+                    // Fall back to carrier name.
+                    simName = phone.getCarrierName();
+                }
+                simNames.add(simName);
+            }
+        }
+
+        if (cdmaPhoneCount > 1) {
+            params.mWarningType = EXTRA_SIM_COMBINATION_WARNING_TYPE_DUAL_CDMA;
+            params.mSimNames = String.join(" & ", simNames);
+        }
+
         return params;
     }
 

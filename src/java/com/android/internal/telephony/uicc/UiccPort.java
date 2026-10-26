@@ -368,11 +368,11 @@ public class UiccPort {
     }
 
     private void log(String msg) {
-        Rlog.d(LOG_TAG + " [" + mPhoneId + "]", msg);
+        Rlog.d(LOG_TAG, msg);
     }
 
     private void loge(String msg) {
-        Rlog.e(LOG_TAG + " [" + mPhoneId + "]", msg);
+        Rlog.e(LOG_TAG, msg);
     }
 
     public void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {

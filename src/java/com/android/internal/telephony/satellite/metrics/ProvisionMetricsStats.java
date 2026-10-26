@@ -23,7 +23,6 @@ import android.telephony.satellite.SatelliteManager;
 import android.util.Log;
 
 import com.android.internal.telephony.metrics.SatelliteStats;
-import com.android.internal.telephony.satellite.SatelliteConstants;
 
 /**
  * Stats to log to satellite metrics
@@ -41,7 +40,6 @@ public class ProvisionMetricsStats {
     private boolean mIsCanceled;
     private int mCarrierId;
     private boolean mIsNtnOnlyCarrier;
-    private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
 
     private ProvisionMetricsStats() {
         initializeProvisionParams();
@@ -97,12 +95,6 @@ public class ProvisionMetricsStats {
         return this;
     }
 
-    /** Capture the global connect type of the satellite service */
-    public ProvisionMetricsStats setSupportedConnectionMode(int supportedConnectionMode) {
-        mSupportedConnectionMode = supportedConnectionMode;
-        return this;
-    }
-
     /** Report the provision metrics atoms to PersistAtomsStorage in telephony */
     public void reportProvisionMetrics() {
         SatelliteStats.SatelliteProvisionParams provisionParams =
@@ -114,7 +106,6 @@ public class ProvisionMetricsStats {
                         .setIsCanceled(mIsCanceled)
                         .setCarrierId(mCarrierId)
                         .setIsNtnOnlyCarrier(mIsNtnOnlyCarrier)
-                        .setSupportedConnectionMode(mSupportedConnectionMode)
                         .build();
         SatelliteStats.getInstance().onSatelliteProvisionMetrics(provisionParams);
         logd("reportProvisionMetrics: " + provisionParams);
@@ -128,7 +119,6 @@ public class ProvisionMetricsStats {
         mIsCanceled = false;
         mCarrierId = UNKNOWN_CARRIER_ID;
         mIsNtnOnlyCarrier = false;
-        mSupportedConnectionMode = SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
     }
 
     private static void logd(@NonNull String log) {

@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
+
 /**
  * SatelliteConfigParser parses the config data and create SatelliteConfig.
  * The config data is located at "/data/misc/telephonyconfig/telephony_config.pb".
@@ -82,7 +83,7 @@ public class SatelliteConfigParser extends ConfigParser<SatelliteConfig> {
             Log.d(TAG, "SatelliteConfig is created");
         } catch (Exception e) {
             parseError = true;
-            Log.e(TAG, "Parse Error", e);
+            Log.e(TAG, "Parse Error : " + e.getMessage());
         } finally {
             if (parseError) {
                 mVersion = VERSION_UNKNOWN;

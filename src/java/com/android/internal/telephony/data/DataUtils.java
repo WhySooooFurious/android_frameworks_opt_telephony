@@ -32,7 +32,6 @@ import android.telephony.Annotation.DataActivityType;
 import android.telephony.Annotation.NetCapability;
 import android.telephony.Annotation.NetworkType;
 import android.telephony.Annotation.ValidationStatus;
-import android.telephony.CarrierConfigManager;
 import android.telephony.TelephonyManager;
 import android.telephony.data.ApnSetting;
 import android.telephony.data.ApnSetting.ApnType;
@@ -60,24 +59,11 @@ import java.util.stream.Collectors;
  * This class contains all the utility methods used by telephony data stack.
  */
 public class DataUtils {
-    private static final String TAG = "DataUtils";
-
+    public static final int NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED = 37;
     /** The time format for converting time to readable string. */
     private static final SimpleDateFormat TIME_FORMAT =
             new SimpleDateFormat("HH:mm:ss.SSS", Locale.US);
-
-    /**
-     * A capability indicating that this network is for Unified Communications.
-     *
-     * <p>This may be used by the platform to tune network parameters in order to provide an optimal
-     * experience for applications providing unified communications services, such as VoIP, video
-     * conferencing, instant messaging, and presence services.
-     *
-     * <p>This capability is mapped to the 3GPP 5G Unified Communications (UFC) slice/service type,
-     * as defined in GSMA NG.141 section 3.8 and 3GPP TS 124.526 table 5.2.1.
-     */
-     // TODO: Remove after this is defined in NetworkCapabilities.java
-    public static final int NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS = 38;
+    private static final String TAG = "DataUtils";
 
     /**
      * Get the network capability from the string.
@@ -104,8 +90,6 @@ public class DataUtils {
             case "PRIORITIZE_BANDWIDTH" -> NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH;
             case "PRIORITIZE_LATENCY" -> NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY;
             case "RCS" -> NetworkCapabilities.NET_CAPABILITY_RCS;
-            case "PRIORITIZE_UNIFIED_COMMUNICATIONS" ->
-                    NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS;
             default -> {
                 loge("Illegal network capability: " + capabilityString);
                 yield -1;
@@ -182,10 +166,7 @@ public class DataUtils {
             case NetworkCapabilities.NET_CAPABILITY_MMTEL -> "MMTEL";
             case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY -> "PRIORITIZE_LATENCY";
             case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH -> "PRIORITIZE_BANDWIDTH";
-            case NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED
-                    -> "NOT_BANDWIDTH_CONSTRAINED";
-            case NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS
-                    -> "PRIORITIZE_UNIFIED_COMMUNICATIONS";
+            case NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED -> "NOT_BANDWIDTH_CONSTRAINED";
             default -> {
                 loge("Unknown network capability(" + netCap + ")");
                 yield "Unknown(" + netCap + ")";
@@ -520,26 +501,5 @@ public class DataUtils {
 
     private static void loge(String msg) {
         Rlog.e(TAG, msg);
-    }
-
-    /**
-     * Checks if a given dataMode is valid or not.
-     *
-     * @param dataMode the data mode that needs to be validated.
-     * @return {@code true} if data mode is valid, {@code false} otherwise.
-     */
-    public static boolean isValidDataMode(int dataMode) {
-        if (dataMode < CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED
-                || CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL < dataMode) {
-            loge(
-                    "Invalid data mode: "
-                            + dataMode
-                            + ". It's not within the allowed range of data mode: "
-                            + CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED
-                            + " - "
-                            + CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL);
-            return false;
-        }
-        return true;
     }
 }

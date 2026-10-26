@@ -23,7 +23,6 @@ import static com.android.internal.telephony.IccSmsInterfaceManager.SMS_MESSAGE_
 import static com.android.internal.telephony.SmsDispatchersController.PendingRequest;
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
-import android.annotation.NonNull;
 import android.annotation.UserIdInt;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -54,7 +53,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
-import android.os.Process;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -92,7 +90,6 @@ import com.android.internal.telephony.GsmAlphabet.TextEncodingDetails;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.cdma.sms.UserData;
-import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
@@ -125,6 +122,7 @@ public abstract class SMSDispatcher extends Handler {
     protected static final String MAP_KEY_DEST_PORT = "destPort";
     protected static final String MAP_KEY_DATA = "data";
     protected static final String MAP_KEY_TEXT = "text";
+
     private static final int PREMIUM_RULE_USE_SIM = 1;
     private static final int PREMIUM_RULE_USE_NETWORK = 2;
     private static final int PREMIUM_RULE_USE_BOTH = 3;
@@ -186,7 +184,6 @@ public abstract class SMSDispatcher extends Handler {
     protected Phone mPhone;
     @UnsupportedAppUsage
     protected final Context mContext;
-    private final @NonNull FeatureFlags mFeatureFlags;
     @UnsupportedAppUsage
     protected final ContentResolver mResolver;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -238,6 +235,9 @@ public abstract class SMSDispatcher extends Handler {
     @VisibleForTesting
     public int mCarrierMessagingTimeout = 10 * 60 * 1000; //10 minutes
 
+    /** Used for storing last TP - Message Reference used*/
+    private int mMessageRef = -1;
+
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected static int getNextConcatenatedRef() {
         sConcatenatedRef += 1;
@@ -248,8 +248,7 @@ public abstract class SMSDispatcher extends Handler {
      * Create a new SMS dispatcher.
      * @param phone the Phone to use
      */
-    protected SMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
-            @NonNull FeatureFlags featureFlags) {
+    protected SMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController) {
         mPhone = phone;
         mSmsDispatchersController = smsDispatchersController;
         mContext = phone.getContext();
@@ -266,7 +265,6 @@ public abstract class SMSDispatcher extends Handler {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Intent.ACTION_SIM_STATE_CHANGED);
         mContext.registerReceiver(mBroadcastReceiver, intentFilter);
-        mFeatureFlags = featureFlags;
         Rlog.d(TAG, "SMSDispatcher: ctor mSmsCapable=" + mSmsCapable + " format=" + getFormat()
                 + " mSmsSendDisabled=" + mSmsSendDisabled);
     }
@@ -452,13 +450,12 @@ public abstract class SMSDispatcher extends Handler {
                    if sim was used on another device and inserted in a new device,
                    that device will start sending the next TPMR after reading from the SIM.
                  */
-                mSmsDispatchersController.setMessageReference(getTpmrValueFromSIM());
-                if (mSmsDispatchersController.getMessageReference() == -1) {
+                mMessageRef = getTpmrValueFromSIM();
+                if (mMessageRef == -1) {
                     SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                             .getSubscriptionInfoInternal(msg.arg1);
                     if (subInfo != null) {
-                        mSmsDispatchersController.setMessageReference(
-                                subInfo.getLastUsedTPMessageReference());
+                        mMessageRef = subInfo.getLastUsedTPMessageReference();
                     }
                 }
                 break;
@@ -478,12 +475,11 @@ public abstract class SMSDispatcher extends Handler {
     }
 
     private void updateTPMessageReference() {
-        updateSIMLastTPMRValue(mSmsDispatchersController.getMessageReference());
+        updateSIMLastTPMRValue(mMessageRef);
         final long identity = Binder.clearCallingIdentity();
         try {
             SubscriptionManagerService.getInstance()
-                    .setLastUsedTPMessageReference(getSubId(),
-                    mSmsDispatchersController.getMessageReference());
+                    .setLastUsedTPMessageReference(getSubId(), mMessageRef);
         } catch (SecurityException e) {
             Rlog.e(TAG, "Security Exception caused on messageRef updation to DB " + e.getMessage());
         } finally {
@@ -525,10 +521,9 @@ public abstract class SMSDispatcher extends Handler {
             return 0;
         }
 
-        int messageRef = mSmsDispatchersController.incrementMessageReference();
-        Rlog.d(TAG, "nextMessageRef: " + messageRef);
+        mMessageRef = (mMessageRef + 1) % 256;
         updateTPMessageReference();
-        return messageRef;
+        return mMessageRef;
     }
 
     /**
@@ -833,7 +828,9 @@ public abstract class SMSDispatcher extends Handler {
 
         SmsResponse smsResponse = new SmsResponse(messageRef, null /* ackPdu */, NO_ERROR_CODE,
                 tracker.mMessageId);
-        tracker.mResultCodeFromCarrierMessagingService = result;
+        if (Flags.temporaryFailuresInCarrierMessagingService()) {
+            tracker.mResultCodeFromCarrierMessagingService = result;
+        }
 
         switch (result) {
             case CarrierMessagingService.SEND_STATUS_OK:
@@ -881,29 +878,17 @@ public abstract class SMSDispatcher extends Handler {
                 Rlog.d(TAG, "processSendSmsResponse: Sending SMS by CarrierMessagingService failed."
                         + " Retry on carrier network. "
                         + SmsController.formatCrossStackMessageId(tracker.mMessageId));
-                // Reset the result code from carrier messaging service so that result code from
-                // RIL will be used.
-                resetResultCodeFromCarrierMessagingService(tracker);
                 sendSubmitPdu(tracker);
                 break;
             default:
                 Rlog.d(TAG, "processSendSmsResponse: Unknown result " + result + " Retry on carrier"
                         + " network. "
                         + SmsController.formatCrossStackMessageId(tracker.mMessageId));
-                // Reset the result code from carrier messaging service so that result code from
-                // RIL will be used.
-                resetResultCodeFromCarrierMessagingService(tracker);
                 sendSubmitPdu(tracker);
         }
     }
 
-    private void resetResultCodeFromCarrierMessagingService(SmsTracker tracker) {
-        tracker.mResultCodeFromCarrierMessagingService = CarrierMessagingService.SEND_STATUS_OK;
-    }
-
     private int toSmsManagerResultForSendSms(int carrierMessagingServiceResult) {
-        Rlog.d(TAG, "toSmsManagerResultForSendSms: carrierMessagingServiceResult="
-                + carrierMessagingServiceResult);
         switch (carrierMessagingServiceResult) {
             case CarrierMessagingService.SEND_STATUS_OK:
                 return Activity.RESULT_OK;
@@ -1149,7 +1134,30 @@ public abstract class SMSDispatcher extends Handler {
             mPhone.notifySmsSent(tracker.mDestAddress);
             mSmsDispatchersController.notifySmsSent(tracker, false,
                 tracker.isSinglePartOrLastPart(), true /*success*/);
-            reportOutgoingSmsMetrics(tracker, SmsManager.RESULT_ERROR_NONE, NO_ERROR_CODE);
+
+            mPhone.getSmsStats().onOutgoingSms(
+                    tracker.mImsRetry > 0 /* isOverIms */,
+                    SmsConstants.FORMAT_3GPP2.equals(getFormat()),
+                    false /* fallbackToCs */,
+                    SmsManager.RESULT_ERROR_NONE,
+                    tracker.mMessageId,
+                    tracker.isFromDefaultSmsApplication(mContext),
+                    tracker.getInterval(),
+                    mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
+                    tracker.isMtSmsPollingMessage(mContext));
+            if (mPhone != null) {
+                TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
+                if (telephonyAnalytics != null) {
+                    SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
+                    if (smsMmsAnalytics != null) {
+                        smsMmsAnalytics.onOutgoingSms(
+                                tracker.mImsRetry > 0 /* isOverIms */,
+                                SmsManager.RESULT_ERROR_NONE
+                        );
+                    }
+                }
+            }
+
         } else {
             if (DBG) {
                 Rlog.d(TAG, "SMS send failed "
@@ -1157,7 +1165,8 @@ public abstract class SMSDispatcher extends Handler {
             }
 
             int error;
-            if (tracker.mResultCodeFromCarrierMessagingService
+            if (Flags.temporaryFailuresInCarrierMessagingService()
+                    && tracker.mResultCodeFromCarrierMessagingService
                             != CarrierMessagingService.SEND_STATUS_OK) {
                 error =
                         toSmsManagerResultForSendSms(
@@ -1188,7 +1197,29 @@ public abstract class SMSDispatcher extends Handler {
             if (!isIms() && ss != ServiceState.STATE_IN_SERVICE) {
                 tracker.onFailed(mContext, getNotInServiceError(ss), NO_ERROR_CODE);
                 notifySmsSentFailedToEmergencyStateTracker(tracker, false);
-                reportOutgoingSmsMetrics(tracker, getNotInServiceError(ss), NO_ERROR_CODE);
+                mPhone.getSmsStats().onOutgoingSms(
+                        tracker.mImsRetry > 0 /* isOverIms */,
+                        SmsConstants.FORMAT_3GPP2.equals(getFormat()),
+                        false /* fallbackToCs */,
+                        getNotInServiceError(ss),
+                        tracker.mMessageId,
+                        tracker.isFromDefaultSmsApplication(mContext),
+                        tracker.getInterval(),
+                        mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
+                        tracker.isMtSmsPollingMessage(mContext));
+                if (mPhone != null) {
+                    TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
+                    if (telephonyAnalytics != null) {
+                        SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
+                        if (smsMmsAnalytics != null) {
+                            smsMmsAnalytics.onOutgoingSms(
+                                    tracker.mImsRetry > 0 /* isOverIms */,
+                                    getNotInServiceError(ss)
+                            );
+                        }
+                    }
+                }
+
             } else if (error == SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
                     && tracker.mRetryCount < getMaxSmsRetryCount()) {
                 // Retry after a delay if needed.
@@ -1203,13 +1234,56 @@ public abstract class SMSDispatcher extends Handler {
                 int errorCode = (smsResponse != null) ? smsResponse.mErrorCode : NO_ERROR_CODE;
                 Message retryMsg = obtainMessage(EVENT_SEND_RETRY, tracker);
                 sendMessageDelayed(retryMsg, getSmsRetryDelayValue());
-                reportOutgoingSmsMetrics(tracker, SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY,
-                        errorCode);
+                mPhone.getSmsStats().onOutgoingSms(
+                        tracker.mImsRetry > 0 /* isOverIms */,
+                        SmsConstants.FORMAT_3GPP2.equals(getFormat()),
+                        false /* fallbackToCs */,
+                        SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY,
+                        errorCode,
+                        tracker.mMessageId,
+                        tracker.isFromDefaultSmsApplication(mContext),
+                        tracker.getInterval(),
+                        mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
+                        tracker.isMtSmsPollingMessage(mContext));
+                if (mPhone != null) {
+                    TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
+                    if (telephonyAnalytics != null) {
+                        SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
+                        if (smsMmsAnalytics != null) {
+                            smsMmsAnalytics.onOutgoingSms(
+                                    tracker.mImsRetry > 0 /* isOverIms */,
+                                    SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
+                            );
+                        }
+                    }
+                }
+
             } else {
                 int errorCode = (smsResponse != null) ? smsResponse.mErrorCode : NO_ERROR_CODE;
                 tracker.onFailed(mContext, error, errorCode);
                 notifySmsSentFailedToEmergencyStateTracker(tracker, false);
-                reportOutgoingSmsMetrics(tracker, error, errorCode);
+                mPhone.getSmsStats().onOutgoingSms(
+                        tracker.mImsRetry > 0 /* isOverIms */,
+                        SmsConstants.FORMAT_3GPP2.equals(getFormat()),
+                        false /* fallbackToCs */,
+                        error,
+                        errorCode,
+                        tracker.mMessageId,
+                        tracker.isFromDefaultSmsApplication(mContext),
+                        tracker.getInterval(),
+                        mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
+                        tracker.isMtSmsPollingMessage(mContext));
+                if (mPhone != null) {
+                    TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
+                    if (telephonyAnalytics != null) {
+                        SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
+                        if (smsMmsAnalytics != null) {
+                            smsMmsAnalytics.onOutgoingSms(
+                                    tracker.mImsRetry > 0 /* isOverIms */,
+                                    error);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1217,7 +1291,6 @@ public abstract class SMSDispatcher extends Handler {
     @SmsManager.Result
     private int rilErrorToSmsManagerResult(CommandException.Error rilError,
             SmsTracker tracker) {
-        Rlog.d(TAG, "rilErrorToSmsManagerResult: rilError=" + rilError + ", tracker=" + tracker);
         mSmsOutgoingErrorCodes.log("rilError: " + rilError
                 + ", MessageId: " + SmsController.formatCrossStackMessageId(tracker.mMessageId));
 
@@ -1419,7 +1492,7 @@ public abstract class SMSDispatcher extends Handler {
     @UnsupportedAppUsage
     protected void sendData(String callingPackage, int callingUser, String destAddr, String scAddr,
             int destPort, byte[] data, PendingIntent sentIntent, PendingIntent deliveryIntent,
-            boolean isForVvm, long uniqueMessageId, int uid) {
+            boolean isForVvm, long uniqueMessageId) {
         int messageRef = nextMessageRef();
         SmsMessageBase.SubmitPduBase pdu = getSubmitPdu(
                 scAddr, destAddr, destPort, data, (deliveryIntent != null), messageRef);
@@ -1429,7 +1502,7 @@ public abstract class SMSDispatcher extends Handler {
                     deliveryIntent, getFormat(), null /*messageUri*/, false /*expectMore*/,
                     null /*fullMessageText*/, false /*isText*/,
                     true /*persistMessage*/, isForVvm, 0L /* messageId */, messageRef,
-                    uniqueMessageId, uid);
+                    uniqueMessageId);
 
             if (!sendSmsByCarrierApp(true /* isDataSms */, tracker)) {
                 sendSubmitPdu(tracker);
@@ -1544,10 +1617,10 @@ public abstract class SMSDispatcher extends Handler {
             PendingIntent sentIntent, PendingIntent deliveryIntent, Uri messageUri,
             String callingPkg, int callingUser, boolean persistMessage, int priority,
             boolean expectMore, int validityPeriod, boolean isForVvm,
-            long messageId, int uid) {
+            long messageId) {
         sendText(destAddr, scAddr, text, sentIntent, deliveryIntent, messageUri, callingPkg,
                 callingUser, persistMessage, priority, expectMore, validityPeriod, isForVvm,
-                messageId, false, PendingRequest.getNextUniqueMessageId(), uid);
+                messageId, false, PendingRequest.getNextUniqueMessageId());
     }
 
     /**
@@ -1655,7 +1728,7 @@ public abstract class SMSDispatcher extends Handler {
             PendingIntent sentIntent, PendingIntent deliveryIntent, Uri messageUri,
             String callingPkg, int callingUser, boolean persistMessage, int priority,
             boolean expectMore, int validityPeriod, boolean isForVvm,
-            long messageId, boolean skipShortCodeCheck, long uniqueMessageId, int uid) {
+            long messageId, boolean skipShortCodeCheck, long uniqueMessageId) {
         Rlog.d(TAG, "sendText id: " + SmsController.formatCrossStackMessageId(messageId));
         int messageRef = nextMessageRef();
         SmsMessageBase.SubmitPduBase pdu = getSubmitPdu(
@@ -1666,7 +1739,7 @@ public abstract class SMSDispatcher extends Handler {
             SmsTracker tracker = getSmsTracker(callingPkg, callingUser, map, sentIntent,
                     deliveryIntent, getFormat(), messageUri, expectMore, text, true /*isText*/,
                     persistMessage, priority, validityPeriod, isForVvm, messageId, messageRef,
-                    skipShortCodeCheck, uniqueMessageId, uid);
+                    skipShortCodeCheck, uniqueMessageId);
 
             if (!sendSmsByCarrierApp(false /* isDataSms */, tracker)) {
                 sendSubmitPdu(tracker);
@@ -1848,7 +1921,7 @@ public abstract class SMSDispatcher extends Handler {
             ArrayList<String> parts, ArrayList<PendingIntent> sentIntents,
             ArrayList<PendingIntent> deliveryIntents, Uri messageUri, String callingPkg,
             int callingUser, boolean persistMessage, int priority, boolean expectMore,
-            int validityPeriod, long messageId, long uniqueMessageId, int uid) {
+            int validityPeriod, long messageId, long uniqueMessageId) {
         final String fullMessageText = getMultipartMessageText(parts);
         int refNumber = getNextConcatenatedRef() & 0x00FF;
         int encoding = SmsConstants.ENCODING_UNKNOWN;
@@ -1911,7 +1984,7 @@ public abstract class SMSDispatcher extends Handler {
                         smsHeader, encoding, sentIntent, deliveryIntent, (i == (msgCount - 1)),
                         unsentPartCount, anyPartFailed, messageUri,
                         fullMessageText, priority, expectMore, validityPeriod, messageId,
-                        messageRef, uniqueMessageId, uid);
+                        messageRef, uniqueMessageId);
             if (trackers[i] == null) {
                 triggerSentIntentForFailure(sentIntents);
                 return;
@@ -1947,7 +2020,7 @@ public abstract class SMSDispatcher extends Handler {
             int encoding, PendingIntent sentIntent, PendingIntent deliveryIntent, boolean lastPart,
             AtomicInteger unsentPartCount, AtomicBoolean anyPartFailed, Uri messageUri,
             String fullMessageText, int priority, boolean expectMore, int validityPeriod,
-            long messageId, int messageRef, long uniqueMessageId, int uid) {
+            long messageId, int messageRef, long uniqueMessageId) {
         if (isCdmaMo()) {
             UserData uData = new UserData();
             uData.payloadStr = message;
@@ -1977,7 +2050,7 @@ public abstract class SMSDispatcher extends Handler {
                         deliveryIntent, getFormat(), unsentPartCount, anyPartFailed, messageUri,
                         smsHeader, (!lastPart || expectMore), fullMessageText,  /*isText*/
                         true,  /*persistMessage*/ true, priority, validityPeriod,  /* isForVvm */
-                        false, messageId, messageRef, false, uniqueMessageId, uid);
+                        false, messageId, messageRef, false, uniqueMessageId);
             } else {
                 Rlog.e(TAG, "CdmaSMSDispatcher.getNewSubmitPduTracker(): getSubmitPdu() returned "
                         + "null " + SmsController.formatCrossStackMessageId(messageId));
@@ -1996,7 +2069,7 @@ public abstract class SMSDispatcher extends Handler {
                         messageUri, smsHeader, (!lastPart || expectMore),
                         fullMessageText,  /*isText*/
                         true,  /*persistMessage*/ false, priority, validityPeriod,  /* isForVvm */
-                        false, messageId, messageRef, false, uniqueMessageId, uid);
+                        false, messageId, messageRef, false, uniqueMessageId);
             } else {
                 Rlog.e(TAG, "GsmSMSDispatcher.getNewSubmitPduTracker(): getSubmitPdu() returned "
                         + "null " + SmsController.formatCrossStackMessageId(messageId));
@@ -2471,10 +2544,7 @@ public abstract class SMSDispatcher extends Handler {
                     trackers[0].isFromDefaultSmsApplication(mContext),
                     trackers[0].getInterval(),
                     mTelephonyManager.isEmergencyNumber(trackers[0].mDestAddress),
-                    trackers[0].isMtSmsPollingMessage(mContext),
-                    trackers[0].getPduLength(),
-                    trackers[0].getAppPackageName(),
-                    trackers[0].getAppUid());
+                    trackers[0].isMtSmsPollingMessage(mContext));
             if (mPhone != null) {
                 TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
                 if (telephonyAnalytics != null) {
@@ -2563,8 +2633,6 @@ public abstract class SMSDispatcher extends Handler {
         private final UUID mAnomalyUnexpectedErrorFromRilUUID =
                 UUID.fromString("43043600-ea7a-44d2-9ae6-a58567ac7886");
 
-        private final int mAppUid;
-
         private SmsTracker(HashMap<String, Object> data, PendingIntent sentIntent,
                 PendingIntent deliveryIntent, PackageInfo appInfo, String destAddr, String format,
                 AtomicInteger unsentPartCount, AtomicBoolean anyPartFailed, Uri messageUri,
@@ -2572,7 +2640,7 @@ public abstract class SMSDispatcher extends Handler {
                 boolean isText, boolean persistMessage, int userId, int priority,
                 int validityPeriod, boolean isForVvm, long messageId, int carrierId,
                 int messageRef, boolean skipShortCodeDestAddrCheck,
-                long uniqueMessageId, int uid) {
+                long uniqueMessageId) {
             mData = data;
             mSentIntent = sentIntent;
             mDeliveryIntent = deliveryIntent;
@@ -2601,7 +2669,6 @@ public abstract class SMSDispatcher extends Handler {
             mSkipShortCodeDestAddrCheck = skipShortCodeDestAddrCheck;
             mUniqueMessageId = uniqueMessageId;
             mResultCodeFromCarrierMessagingService = CarrierMessagingService.SEND_STATUS_OK;
-            mAppUid = uid;
         }
 
         @VisibleForTesting
@@ -2623,44 +2690,6 @@ public abstract class SMSDispatcher extends Handler {
             mUniqueMessageId = 0;
             mResultCodeFromCarrierMessagingService = CarrierMessagingService.SEND_STATUS_OK;
             mFullMessageText = messageText;
-            mAppUid = android.os.Process.INVALID_UID;
-        }
-
-        @VisibleForTesting
-        public SmsTracker(
-                HashMap<String, Object> data,
-                String destAddr,
-                String format,
-                long messageId,
-                int initialRetryCount,
-                String fullMessageText
-        ) {
-            this.mData = data;
-            this.mDestAddress = destAddr;
-            this.mFormat = format;
-            this.mMessageId = messageId;
-            this.mRetryCount = initialRetryCount;
-            this.mFullMessageText = fullMessageText;
-
-            this.mAppInfo = null;
-            this.mSentIntent = null;
-            this.mDeliveryIntent = null;
-            this.mSmsHeader = null;
-            this.mExpectMore = false;
-            this.mUsesImsServiceForIms = false;
-            this.mMessageRef = 0;
-            this.mValidityPeriod = -1;
-            this.mPriority = 0;
-            this.mIsText = true;
-            this.mPersistMessage = false;
-            this.mUserId = 0;
-            this.mSubId = 0;
-            this.mIsForVvm = false;
-            this.mCarrierId = 0;
-            this.mSkipShortCodeDestAddrCheck = false;
-            this.mUniqueMessageId = messageId;
-            this.mResultCodeFromCarrierMessagingService = CarrierMessagingService.SEND_STATUS_OK;
-            this.mAppUid = Process.INVALID_UID;
         }
 
         public HashMap<String, Object> getData() {
@@ -2679,7 +2708,7 @@ public abstract class SMSDispatcher extends Handler {
          * Get the calling Application Info
          * @return Application Info
          */
-        ApplicationInfo getAppInfo() {
+        public ApplicationInfo getAppInfo() {
             return mAppInfo == null ? null : mAppInfo.applicationInfo;
         }
 
@@ -2714,24 +2743,6 @@ public abstract class SMSDispatcher extends Handler {
             String mtSmsPollingText =
                     context.getResources().getString(R.string.config_mt_sms_polling_text);
             return mFullMessageText.equals(mtSmsPollingText);
-        }
-
-        /**
-         * Returns the length of the PDU in bytes for this tracker, if available.
-         * This value is expected to be populated in the {@code mData} map during tracker creation
-         * after the PDU has been generated.
-         *
-         * @return The PDU length in bytes, or 0 if the length is not available or invalid.
-         */
-        public int getPduLength() {
-            if (mData == null) {
-                return 0;
-            }
-            byte[] encodedPdu =  (byte[]) mData.get(MAP_KEY_PDU);
-            if (encodedPdu == null) {
-                return 0;
-            }
-            return encodedPdu.length;
         }
 
         /**
@@ -2934,14 +2945,6 @@ public abstract class SMSDispatcher extends Handler {
                 default:
                     String message = "SMS failed";
                     Rlog.d(TAG, message + " with error " + error + ", errorCode " + errorCode);
-                    SatelliteController satelliteController = SatelliteController.getInstance();
-                    if (satelliteController != null) {
-                        if (satelliteController.isSatelliteBeingDisabled()) {
-                            Rlog.d(TAG, "isSatelliteBeingDisabled() are true, "
-                                    + "skip reporting anomaly");
-                            return;
-                        }
-                    }
                     AnomalyReporter.reportAnomaly(
                             generateUUID(error, errorCode), message, mCarrierId);
             }
@@ -2994,13 +2997,6 @@ public abstract class SMSDispatcher extends Handler {
                 }
             }
         }
-
-        /**
-         * Returns the application uid for this tracker.
-         */
-        public int getAppUid() {
-            return mAppUid;
-        }
     }
 
     protected SmsTracker getSmsTracker(String callingPackage, int callingUser,
@@ -3010,7 +3006,7 @@ public abstract class SMSDispatcher extends Handler {
             SmsHeader smsHeader, boolean expectMore, String fullMessageText, boolean isText,
             boolean persistMessage, int priority, int validityPeriod, boolean isForVvm,
             long messageId, int messageRef, boolean skipShortCodeCheck,
-            long uniqueMessageId, int uid) {
+            long uniqueMessageId) {
         if (!Flags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
             callingUser = UserHandle.getUserHandleForUid(Binder.getCallingUid()).getIdentifier();
         }
@@ -3031,20 +3027,20 @@ public abstract class SMSDispatcher extends Handler {
                 unsentPartCount, anyPartFailed, messageUri, smsHeader, expectMore,
                 fullMessageText, getSubId(), isText, persistMessage, callingUser, priority,
                 validityPeriod, isForVvm, messageId, mPhone.getCarrierId(), messageRef,
-                skipShortCodeCheck, uniqueMessageId, uid);
+                skipShortCodeCheck, uniqueMessageId);
     }
 
     protected SmsTracker getSmsTracker(String callingPackage, int callingUser,
             HashMap<String, Object> data, PendingIntent sentIntent, PendingIntent deliveryIntent,
             String format, Uri messageUri, boolean expectMore, String fullMessageText,
             boolean isText, boolean persistMessage, boolean isForVvm,
-            long messageId, int messageRef, long uniqueMessageId, int uid) {
+            long messageId, int messageRef, long uniqueMessageId) {
         return getSmsTracker(callingPackage, callingUser , data, sentIntent, deliveryIntent,
                 format, /*unsentPartCount*/ null, /*anyPartFailed*/ null, messageUri, /*smsHeader*/
                 null, expectMore, fullMessageText, isText,
                 persistMessage, SMS_MESSAGE_PRIORITY_NOT_SPECIFIED,
                 SMS_MESSAGE_PERIOD_NOT_SPECIFIED,
-                isForVvm, messageId, messageRef, false, uniqueMessageId, uid);
+                isForVvm, messageId, messageRef, false, uniqueMessageId);
     }
 
     protected SmsTracker getSmsTracker(String callingPackage, int callingUser,
@@ -3052,12 +3048,12 @@ public abstract class SMSDispatcher extends Handler {
             String format, Uri messageUri, boolean expectMore, String fullMessageText,
             boolean isText, boolean persistMessage, int priority, int validityPeriod,
             boolean isForVvm, long messageId, int messageRef, boolean skipShortCodeCheck,
-            long uniqueMessageId, int uid) {
+            long uniqueMessageId) {
         return getSmsTracker(callingPackage, callingUser, data, sentIntent, deliveryIntent,
                 format, /*unsentPartCount*/ null, /*anyPartFailed*/ null, messageUri, /*smsHeader*/
                 null, expectMore, fullMessageText, isText, persistMessage, priority,
                 validityPeriod, isForVvm, messageId, messageRef, skipShortCodeCheck,
-                uniqueMessageId, uid);
+                uniqueMessageId);
     }
 
     protected HashMap<String, Object> getSmsTrackerMap(String destAddr, String scAddr,
@@ -3248,41 +3244,6 @@ public abstract class SMSDispatcher extends Handler {
             return false;
         } finally {
             Binder.restoreCallingIdentity(token);
-        }
-    }
-
-    private void reportOutgoingSmsMetrics(SmsTracker tracker, int result, int errorCode) {
-        if (mPhone != null) {
-            int resultForMetrics = result;
-            if (mFeatureFlags.satellite25q4Apis()
-                    && result == SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
-                    && tracker.mRetryCount >= getMaxSmsRetryCount()) {
-                resultForMetrics = SmsManager.RESULT_SMS_SEND_FAILED_AFTER_MAX_RETRY;
-            }
-
-            mPhone.getSmsStats().onOutgoingSms(
-                    tracker.mImsRetry > 0 /* isOverIms */,
-                    SmsConstants.FORMAT_3GPP2.equals(getFormat()),
-                    false /* fallbackToCs */,
-                    resultForMetrics,
-                    errorCode,
-                    tracker.mMessageId,
-                    tracker.isFromDefaultSmsApplication(mContext),
-                    tracker.getInterval(),
-                    mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                    tracker.isMtSmsPollingMessage(mContext),
-                    tracker.getPduLength(),
-                    tracker.getAppPackageName(),
-                    tracker.getAppUid());
-            TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
-            if (telephonyAnalytics != null) {
-                SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
-                if (smsMmsAnalytics != null) {
-                    smsMmsAnalytics.onOutgoingSms(
-                            tracker.mImsRetry > 0 /* isOverIms */,
-                            result);
-                }
-            }
         }
     }
 

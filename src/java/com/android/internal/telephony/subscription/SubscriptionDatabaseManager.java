@@ -2251,6 +2251,9 @@ public class SubscriptionDatabaseManager extends Handler {
      * @throws IllegalArgumentException if the subscription does not exist.
      */
     public void setSatelliteESOSSupported(int subId, int isSatelliteESOSSupported) {
+        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
+            return;
+        }
         writeDatabaseAndCacheHelper(subId,
                 SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED, isSatelliteESOSSupported,
                 SubscriptionInfoInternal.Builder::setSatelliteESOSSupported);
@@ -2612,8 +2615,10 @@ public class SubscriptionDatabaseManager extends Handler {
             builder.setTransferStatus(cursor.getInt(cursor.getColumnIndexOrThrow(
                     SimInfo.COLUMN_TRANSFER_STATUS)));
         }
-        builder.setSatelliteESOSSupported(cursor.getInt(
-                cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));
+        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
+            builder.setSatelliteESOSSupported(cursor.getInt(
+                    cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));
+        }
         return builder.build();
     }
 

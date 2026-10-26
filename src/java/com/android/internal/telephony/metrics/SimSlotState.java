@@ -35,7 +35,6 @@ public class SimSlotState {
     public final int numActiveEsims;
     public final int numActiveEsimSlots;
     public final int numActiveMepSlots;
-    public final int numEsimSlots;
 
     /** Returns the current SIM state. */
     public static SimSlotState getCurrentState() {
@@ -44,47 +43,37 @@ public class SimSlotState {
         int numActiveEsims = 0;
         int numActiveEsimSlots = 0;
         int numActiveMepSlots = 0;
-        int numEsimSlots = 0;
         UiccController uiccController = UiccController.getInstance();
         // since we cannot hold lock insider UiccController, using getUiccSlots() for length only
         for (int i = 0; i < uiccController.getUiccSlots().length; i++) {
             UiccSlot slot = uiccController.getUiccSlot(i);
-            if (slot == null) {
-                continue;
-            }
-            if (slot.isEuicc()) {
-                numEsimSlots++;
-            }
-            if (!slot.isActive()) {
-                continue;
-            }
-            numActiveSlots++;
-            if (slot.isEuicc()) {
-                numActiveEsimSlots++;
-            }
-            // avoid CardState.isCardPresent() since this should not include restricted cards
-            if (slot.getCardState() == CardState.CARDSTATE_PRESENT) {
+            if (slot != null && slot.isActive()) {
+                numActiveSlots++;
                 if (slot.isEuicc()) {
-                    // need to check active profiles besides the presence of eSIM cards
-                    UiccCard card = slot.getUiccCard();
-                    if (card != null) {
-                        int numActiveProfiles =
-                                (int)
-                                        Arrays.stream(card.getUiccPortList())
-                                                .filter(Objects::nonNull)
-                                                .map(UiccPort::getUiccProfile)
-                                                .filter(Objects::nonNull)
-                                                .filter(profile -> profile.getNumApplications() > 0)
-                                                .count();
-                        numActiveSims += numActiveProfiles;
-                        numActiveEsims += numActiveProfiles;
-                        if (numActiveProfiles > 1) {
-                            numActiveMepSlots++;
+                    numActiveEsimSlots++;
+                }
+                // avoid CardState.isCardPresent() since this should not include restricted cards
+                if (slot.getCardState() == CardState.CARDSTATE_PRESENT) {
+                    if (slot.isEuicc()) {
+                        // need to check active profiles besides the presence of eSIM cards
+                        UiccCard card = slot.getUiccCard();
+                        if (card != null) {
+                            int numActiveProfiles = (int) Arrays.stream(card.getUiccPortList())
+                                    .filter(Objects::nonNull)
+                                    .map(UiccPort::getUiccProfile)
+                                    .filter(Objects::nonNull)
+                                    .filter(profile -> profile.getNumApplications() > 0)
+                                    .count();
+                            numActiveSims += numActiveProfiles;
+                            numActiveEsims += numActiveProfiles;
+                            if (numActiveProfiles > 1) {
+                                numActiveMepSlots++;
+                            }
                         }
+                    } else {
+                        // physical SIMs do not always have non-null card
+                        numActiveSims++;
                     }
-                } else {
-                    // physical SIMs do not always have non-null card
-                    numActiveSims++;
                 }
             }
         }
@@ -93,8 +82,7 @@ public class SimSlotState {
                 numActiveSims,
                 numActiveEsims,
                 numActiveEsimSlots,
-                numActiveMepSlots,
-                numEsimSlots);
+                numActiveMepSlots);
     }
 
     private SimSlotState(
@@ -102,14 +90,12 @@ public class SimSlotState {
             int numActiveSims,
             int numActiveEsims,
             int numActiveEsimSlots,
-            int numActiveMepSlots,
-            int numEsimSlots) {
+            int numActiveMepSlots) {
         this.numActiveSlots = numActiveSlots;
         this.numActiveSims = numActiveSims;
         this.numActiveEsims = numActiveEsims;
         this.numActiveEsimSlots = numActiveEsimSlots;
         this.numActiveMepSlots = numActiveMepSlots;
-        this.numEsimSlots = numEsimSlots;
     }
 
     /** Returns whether the given phone is using a eSIM. */

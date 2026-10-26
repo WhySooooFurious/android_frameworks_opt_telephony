@@ -18,7 +18,6 @@ package com.android.internal.telephony.cdma;
 
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
-import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
 import android.os.Message;
@@ -35,7 +34,6 @@ import com.android.internal.telephony.SmsController;
 import com.android.internal.telephony.SmsDispatchersController;
 import com.android.internal.telephony.SmsHeader;
 import com.android.internal.telephony.SmsMessageBase;
-import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.util.SMSDispatcherUtil;
 import com.android.telephony.Rlog;
 
@@ -43,9 +41,8 @@ public class CdmaSMSDispatcher extends SMSDispatcher {
     private static final String TAG = "CdmaSMSDispatcher";
     private static final boolean VDBG = false;
 
-    public CdmaSMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
-            @NonNull FeatureFlags featureFlags) {
-        super(phone, smsDispatchersController, featureFlags);
+    public CdmaSMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController) {
+        super(phone, smsDispatchersController);
         Rlog.d(TAG, "CdmaSMSDispatcher created");
     }
 

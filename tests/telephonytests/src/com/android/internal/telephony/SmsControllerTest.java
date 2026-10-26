@@ -34,7 +34,6 @@ import android.compat.testing.PlatformCompatChangeRule;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.Build;
-import android.os.Process;
 import android.telephony.TelephonyManager;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
@@ -204,7 +203,7 @@ public class SmsControllerTest extends TelephonyTest {
         mSmsControllerUT.sendVisualVoicemailSmsForSubscriber(mCallingPackage, mCallingUserId,
                 null , subId, null, 0, null, null);
         verify(mIccSmsInterfaceManager).sendTextWithSelfPermissions(any(), eq(mCallingUserId),
-                any(), any(), any(), any(), any(), any(), eq(false), eq(true), anyInt());
+                any(), any(), any(), any(), any(), any(), eq(false), eq(true));
     }
 
     @Test
@@ -215,7 +214,7 @@ public class SmsControllerTest extends TelephonyTest {
                 null , 1, null, 0, null, null);
         verify(mIccSmsInterfaceManager, never()).sendTextWithSelfPermissions(any(),
                 eq(mCallingUserId), any(), any(), any(), any(), any(), any(),
-                eq(false), eq(true), anyInt());
+                eq(false), eq(true));
 
         doReturn(false).when(mPhone).isInEcm();
     }
@@ -230,9 +229,8 @@ public class SmsControllerTest extends TelephonyTest {
         mSmsControllerUT.sendTextForSubscriber(subId, mCallingPackage, null, "1234",
                 null, "text", null, null, false, 0L, true, true);
         verify(mIccSmsInterfaceManager, Mockito.times(1))
-                .sendText(eq(mCallingPackage), eq(mCallingUserId),
-                        eq("1234"), isNull(), eq("text"), isNull(), isNull(), eq(false), eq(0L),
-                        eq(true), anyInt());
+                .sendText(mCallingPackage, mCallingUserId,
+                        "1234", null, "text", null, null, false, 0L, true);
     }
 
     @Test
@@ -249,9 +247,8 @@ public class SmsControllerTest extends TelephonyTest {
         mSmsControllerUT.sendTextForSubscriber(subId, mCallingPackage, null, "1234",
                 null, "text", null, null, false, 0L, true, true);
         verify(mIccSmsInterfaceManager, Mockito.times(1))
-                .sendText(eq(mCallingPackage), eq(mCallingUserId),
-                        eq("1234"), isNull(), eq("text"), isNull(), isNull(), eq(false), eq(0L),
-                        eq(true), anyInt());
+                .sendText(mCallingPackage, mCallingUserId,
+                        "1234", null, "text", null, null, false, 0L, true);
     }
 
     @Test
@@ -268,7 +265,7 @@ public class SmsControllerTest extends TelephonyTest {
                 null, "text", null, null, false, 0L, true, true);
         verify(mIccSmsInterfaceManager, Mockito.times(0))
                 .sendText(mCallingPackage, mCallingUserId,
-                        "1234", null, "text", null, null, false, 0L, true, Process.INVALID_UID);
+                        "1234", null, "text", null, null, false, 0L, true);
     }
 
     @Test
@@ -332,8 +329,65 @@ public class SmsControllerTest extends TelephonyTest {
         mSmsControllerUT.sendTextForSubscriber(subId, mCallingPackage, null, "1234",
                 null, "text", null, null, false, 0L, true, true);
         verify(mIccSmsInterfaceManager, Mockito.times(1))
-                .sendText(eq(mCallingPackage), eq(mCallingUserId),
-                        eq("1234"), isNull(), eq("text"), isNull(), isNull(), eq(false), eq(0L),
-                        eq(true), anyInt());
+                .sendText(mCallingPackage, mCallingUserId,
+                        "1234", null, "text", null, null, false, 0L, true);
+    }
+
+    @Test
+    public void sendStoredText_associatedUser_sendsSms() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(true).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredText(subId, mCallingPackage, null, null, null, null, null);
+
+        verify(mIccSmsInterfaceManager).sendStoredText(eq(mCallingPackage),
+            eq(mCallingUserId), isNull(), any(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    public void sendStoredText_notAssociatedUser_fails() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(false).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredText(subId, mCallingPackage, null, null, null, null, null);
+
+        verify(mIccSmsInterfaceManager, never()).sendStoredText(any(), anyInt(), any(),
+            any(), any(), any(), any());
+    }
+
+    @Test
+    public void sendStoredMultipartText_associatedUser_sendsSms() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(true).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredMultipartText(subId, mCallingPackage, null,
+            null, null, null, null);
+
+        verify(mIccSmsInterfaceManager).sendStoredMultipartText(eq(mCallingPackage),
+            eq(mCallingUserId), isNull(), any(), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    public void sendStoredMultipartText_notAssociatedUser_fails() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(false).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredMultipartText(subId, mCallingPackage, null,
+            null, null, null, null);
+
+        verify(mIccSmsInterfaceManager, never()).sendStoredMultipartText(any(), anyInt(), any(),
+            any(), any(), any(), any());
     }
 }

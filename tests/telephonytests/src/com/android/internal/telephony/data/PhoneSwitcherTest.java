@@ -116,7 +116,6 @@ public class PhoneSwitcherTest extends TelephonyTest {
     private CommandsInterface mCommandsInterface1;
     private ServiceStateTracker mSST2;
     private Phone mImsPhone;
-    private Phone mImsPhone2;
     private DataSettingsManager mDataSettingsManager2;
     private GsmCdmaCall mActiveCall;
     private GsmCdmaCall mHoldingCall;
@@ -155,8 +154,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
         mCommandsInterface0 = mock(CommandsInterface.class);
         mCommandsInterface1 = mock(CommandsInterface.class);
         mSST2 = mock(ServiceStateTracker.class);
-        mImsPhone = mock(ImsPhone.class);
-        mImsPhone2 = mock(ImsPhone.class);
+        mImsPhone = mock(Phone.class);
         mDataSettingsManager2 = mock(DataSettingsManager.class);
         mActiveCall = mock(GsmCdmaCall.class);
         mHoldingCall = mock(GsmCdmaCall.class);
@@ -191,11 +189,11 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         doReturn(1).when(mMockedIsub).getDefaultDataSubId();
         doReturn(mMockedIsub).when(mIBinder).queryLocalInterface(anyString());
-        doReturn(mImsPhone).when(mPhone).getImsPhone();
-        doReturn(mImsPhone2).when(mPhone2).getImsPhone();
+        doReturn(mPhone).when(mPhone).getImsPhone();
         mServiceManagerMockedServices.put("isub", mIBinder);
 
         doReturn(mTelephonyDisplayInfo).when(mDisplayInfoController).getTelephonyDisplayInfo();
+        doReturn(true).when(mFeatureFlags).ddsCallback();
     }
 
     @After
@@ -682,10 +680,10 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         // Phone2 has active IMS call on LTE. And data of DEFAULT apn is enabled. This should
         // trigger data switch.
-        doReturn(mImsPhone2).when(mPhone2).getImsPhone();
+        doReturn(mImsPhone).when(mPhone2).getImsPhone();
         doReturn(true).when(mDataSettingsManager2).isDataEnabled();
         mockImsRegTech(1, REGISTRATION_TECH_LTE);
-        notifyPhoneAsInCall(mImsPhone2);
+        notifyPhoneAsInCall(mImsPhone);
 
         // Phone 1 should become the preferred data phone.
         assertEquals(1, mPhoneSwitcherUT.getPreferredDataPhoneId());
@@ -710,16 +708,16 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         // Dialing shouldn't trigger switch because we give modem time to deal with the dialing call
         // first. Phone2 has active IMS call on LTE. And data of DEFAULT apn is enabled.
-        doReturn(mImsPhone2).when(mPhone2).getImsPhone();
+        doReturn(mImsPhone).when(mPhone2).getImsPhone();
         doReturn(true).when(mDataSettingsManager2).isDataEnabled();
         mockImsRegTech(1, REGISTRATION_TECH_LTE);
-        notifyPhoneAsInDial(mImsPhone2);
+        notifyPhoneAsInDial(mImsPhone);
 
         // Phone1 should remain as the preferred data phone
         assertEquals(0, mPhoneSwitcherUT.getPreferredDataPhoneId());
 
         // Dialing -> Alert, should trigger phone switch
-        notifyPhoneAsAlerting(mImsPhone2);
+        notifyPhoneAsAlerting(mImsPhone);
 
         // Phone2 should be preferred data phone
         assertEquals(1, mPhoneSwitcherUT.getPreferredDataPhoneId());
@@ -743,10 +741,10 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         // Phone2 has active IMS call on LTE. And data of DEFAULT apn is enabled. This should
         // trigger data switch.
-        doReturn(mImsPhone2).when(mPhone2).getImsPhone();
+        doReturn(mImsPhone).when(mPhone2).getImsPhone();
         doReturn(true).when(mDataSettingsManager2).isDataEnabled();
         mockImsRegTech(1, REGISTRATION_TECH_LTE);
-        notifyPhoneAsInIncomingCall(mImsPhone2);
+        notifyPhoneAsInIncomingCall(mImsPhone);
 
         // Phone 1 should become the preferred data phone.
         assertEquals(1, mPhoneSwitcherUT.getPreferredDataPhoneId());
@@ -796,11 +794,11 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         // Phone 1 has active IMS call on CROSS_SIM. And data of DEFAULT apn is enabled. This should
         // not trigger data switch.
-        doReturn(mImsPhone2).when(mPhone2).getImsPhone();
+        doReturn(mImsPhone).when(mPhone2).getImsPhone();
         doReturn(true).when(mPhone).isUserDataEnabled();
         doReturn(true).when(mDataSettingsManager2).isDataEnabled();
         mockImsRegTech(1, REGISTRATION_TECH_CROSS_SIM);
-        notifyPhoneAsInCall(mImsPhone2);
+        notifyPhoneAsInCall(mImsPhone);
 
         // Phone 0 should remain the default data phone.
         assertEquals(0, mPhoneSwitcherUT.getPreferredDataPhoneId());
@@ -808,9 +806,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
         // Phone 1 has has handed over the call to LTE. And data of DEFAULT apn is enabled.
         // This should trigger data switch.
         mockImsRegTech(1, REGISTRATION_TECH_LTE);
-        AsyncResult ar = new AsyncResult(null, new ImsPhone.ImsRegistrationRadioTechInfo(
-                1, REGISTRATION_TECH_LTE, REGISTRATION_STATE_REGISTERED), null);
-        notifyImsRegistrationTechChangeWithAsyncResult(ar);
+        notifyImsRegistrationTechChange(mPhone2);
 
         // Phone 1 should become the default data phone.
         assertEquals(1, mPhoneSwitcherUT.getPreferredDataPhoneId());
@@ -1555,18 +1551,17 @@ public class PhoneSwitcherTest extends TelephonyTest {
         mockImsRegTech(0, REGISTRATION_TECH_LTE);
         mockImsRegisterCallback(0);
         mockImsRegisterCallback(1);
-        AsyncResult ar = new AsyncResult(null, new ImsPhone.ImsRegistrationRadioTechInfo(
-                0, REGISTRATION_TECH_LTE, REGISTRATION_STATE_REGISTERED), null);
-        notifyImsRegistrationTechChangeWithAsyncResult(ar);
 
-        // Verify that the callback is not re-registered when the IMS registration callback is
-        // called. To avoid timing issue, using ImsPhone#registerForImsRegistrationChanges()
-        // to receive IMS registration radio tech instead of registring a callback into ImsManager.
-        verify(mMockImsRegisterCallback, never()).setCallback(any(), anyInt(), any(), any());
+        notifyImsRegistrationTechChange(mPhone);
+
+        // Verify that the callback is re-registered when the IMS registration callback is called.
+        verify(mMockImsRegisterCallback, times(2)).setCallback(any(), anyInt(), any(), any());
     }
 
     @Test
     public void testReceivingImsRegistrationTech() throws Exception {
+        doReturn(true).when(mFeatureFlags).changeMethodOfObtainingImsRegistrationRadioTech();
+
         // Set up input and output for testing
         ImsPhone testImsPhone = mock(ImsPhone.class);
         doReturn(testImsPhone).when(mPhone).getImsPhone();
@@ -1678,9 +1673,6 @@ public class PhoneSwitcherTest extends TelephonyTest {
         doReturn(mInactiveCall).when(mImsPhone).getForegroundCall();
         doReturn(mInactiveCall).when(mImsPhone).getBackgroundCall();
         doReturn(mInactiveCall).when(mImsPhone).getRingingCall();
-        doReturn(mInactiveCall).when(mImsPhone2).getForegroundCall();
-        doReturn(mInactiveCall).when(mImsPhone2).getBackgroundCall();
-        doReturn(mInactiveCall).when(mImsPhone2).getRingingCall();
     }
 
     private void notifyPhoneAsInCall(Phone phone) {

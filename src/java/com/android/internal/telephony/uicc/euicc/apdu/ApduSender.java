@@ -61,6 +61,7 @@ public class ApduSender {
     // Status code of APDU response
     private static final int STATUS_NO_ERROR = 0x9000;
     private static final int SW1_NO_ERROR = 0x91;
+    private static final int STATUS_CHANNEL_CLOSED = 0x6881; // b/359336875
 
     private static final int WAIT_TIME_MS = 2000;
     private static final String CHANNEL_ID_PRE = "esim-channel";
@@ -281,12 +282,15 @@ public class ApduSender {
                                 int status = (fullResponse.sw1 << 8) | fullResponse.sw2;
                                 if (status != STATUS_NO_ERROR
                                         && fullResponse.sw1 != SW1_NO_ERROR) {
-                                    // During a EuiccSession, on errors like b/359336875, close the
-                                    // channel immediately so next sendCommand will open a new
-                                    // channel. This is same as the behavior without EuiccSession.
+                                    if (status == STATUS_CHANNEL_CLOSED) {
+                                        // Channel is closed by EUICC e.g. REFRESH.
+                                        tearDownPreferences();
+                                        mChannelOpened = false;
+                                        // TODO: add retry
+                                    }
                                     returnRespnseOrException(
                                             command.channel,
-                                            true /* closeChannelImmediately */,
+                                            closeChannelImmediately,
                                             null /* response */,
                                             new ApduException(status),
                                             resultCallback,
@@ -395,15 +399,12 @@ public class ApduSender {
     }
 
     /**
-     * Closes the given logical channel and return a response or exception via callback.
-     *
-     * <p>The successfulness of closing the channel isn't checked and doesn't affect the behavior
-     * of this method.
+     * Closes the opened logical channel.
      *
      * @param response If {@code exception} is null, this will be returned to {@code resultCallback}
      *     after the channel has been closed.
-     * @param exception If not {@code null}, this will be returned to {@code resultCallback} after
-     *     the channel has been closed.
+     * @param exception If not null, this will be returned to {@code resultCallback} after the
+     *     channel has been closed.
      */
     private void closeAndReturn(
             int channel,

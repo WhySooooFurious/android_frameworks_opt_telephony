@@ -20,8 +20,8 @@ import static com.android.internal.telephony.TelephonyStatsLog.CELLULAR_SERVICE_
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
@@ -61,6 +61,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.Message;
+import android.os.MessageQueue;
 import android.os.RegistrantList;
 import android.os.ServiceManager;
 import android.os.StrictMode;
@@ -91,12 +93,13 @@ import android.test.mock.MockContentResolver;
 import android.testing.TestableLooper;
 import android.util.Log;
 import android.util.Singleton;
-import android.view.textclassifier.TextClassifier;
 
 import com.android.ims.ImsCall;
 import com.android.ims.ImsEcbm;
 import com.android.ims.ImsManager;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
+import com.android.internal.telephony.cdma.CdmaSubscriptionSourceManager;
+import com.android.internal.telephony.cdma.EriManager;
 import com.android.internal.telephony.data.AccessNetworksManager;
 import com.android.internal.telephony.data.CellularNetworkValidator;
 import com.android.internal.telephony.data.DataConfigManager;
@@ -127,6 +130,8 @@ import com.android.internal.telephony.security.CellularIdentifierDisclosureNotif
 import com.android.internal.telephony.security.CellularNetworkSecuritySafetySource;
 import com.android.internal.telephony.security.NullCipherNotifier;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
+import com.android.internal.telephony.test.SimulatedCommands;
+import com.android.internal.telephony.test.SimulatedCommandsVerifier;
 import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.uicc.IsimUiccRecords;
@@ -185,6 +190,7 @@ public abstract class TelephonyTest {
     protected CallManager mCallManager;
     protected PhoneNotifier mNotifier;
     protected TelephonyComponentFactory mTelephonyComponentFactory;
+    protected CdmaSubscriptionSourceManager mCdmaSSM;
     protected RegistrantList mRegistrantList;
     protected IccPhoneBookInterfaceManager mIccPhoneBookIntManager;
     protected ImsManager mImsManager;
@@ -221,6 +227,7 @@ public abstract class TelephonyTest {
     protected SmsUsageMonitor mSmsUsageMonitor;
     protected PackageInfo mPackageInfo;
     protected ApplicationInfo mApplicationInfo;
+    protected EriManager mEriManager;
     protected IBinder mConnMetLoggerBinder;
     protected CarrierSignalAgent mCarrierSignalAgent;
     protected CarrierActionAgent mCarrierActionAgent;
@@ -309,9 +316,6 @@ public abstract class TelephonyTest {
     private final List<InstanceKey> mInstanceKeys = new ArrayList<>();
 
     protected int mIntegerConsumerResult;
-
-    protected TextClassifier mTextClassifier;
-
     protected Semaphore mIntegerConsumerSemaphore = new Semaphore(0);
     protected  Consumer<Integer> mIntegerConsumer = new Consumer<Integer>() {
         @Override
@@ -462,7 +466,6 @@ public abstract class TelephonyTest {
         mFeatureFlags = Mockito.mock(FeatureFlags.class);
         mPhone = Mockito.mock(GsmCdmaPhone.class);
         mPhone2 = Mockito.mock(GsmCdmaPhone.class);
-        mTextClassifier = Mockito.mock(TextClassifier.class);
         mImsPhone = Mockito.mock(ImsPhone.class);
         mSST = Mockito.mock(ServiceStateTracker.class);
         mEmergencyNumberTracker = Mockito.mock(EmergencyNumberTracker.class);
@@ -474,6 +477,7 @@ public abstract class TelephonyTest {
         mCallManager = Mockito.mock(CallManager.class);
         mNotifier = Mockito.mock(PhoneNotifier.class);
         mTelephonyComponentFactory = Mockito.mock(TelephonyComponentFactory.class);
+        mCdmaSSM = Mockito.mock(CdmaSubscriptionSourceManager.class);
         mRegistrantList = Mockito.mock(RegistrantList.class);
         mIccPhoneBookIntManager = Mockito.mock(IccPhoneBookInterfaceManager.class);
         mImsManager = Mockito.mock(ImsManager.class);
@@ -510,6 +514,7 @@ public abstract class TelephonyTest {
         mSmsUsageMonitor = Mockito.mock(SmsUsageMonitor.class);
         mPackageInfo = Mockito.mock(PackageInfo.class);
         mApplicationInfo = Mockito.mock(ApplicationInfo.class);
+        mEriManager = Mockito.mock(EriManager.class);
         mConnMetLoggerBinder = Mockito.mock(IBinder.class);
         mCarrierSignalAgent = Mockito.mock(CarrierSignalAgent.class);
         mCarrierActionAgent = Mockito.mock(CarrierActionAgent.class);
@@ -559,12 +564,11 @@ public abstract class TelephonyTest {
         mDomainSelectionResolver = Mockito.mock(DomainSelectionResolver.class);
         mNullCipherNotifier = Mockito.mock(NullCipherNotifier.class);
 
+        lenient().doReturn(true).when(mFeatureFlags).hsumBroadcast();
+        lenient().doReturn(true).when(mFeatureFlags).hsumPackageManager();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceCheck();
-        lenient().doReturn(true).when(mFeatureFlags).dynamicModemShutdown();
-        lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
-        lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
-        lenient().doReturn(true).when(mFeatureFlags).allowMultiCountryMcc();
-        lenient().doReturn(true).when(mFeatureFlags).deleteCdma();
+        lenient().doReturn(true).when(mFeatureFlags).phoneTypeCleanup();
+        lenient().doReturn(true).when(mFeatureFlags).cleanupCdma();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
@@ -596,7 +600,6 @@ public abstract class TelephonyTest {
                 .queryLocalInterface(anyString());
 
         mPhone.mCi = mSimulatedCommands;
-        mPhone.mCT = mCT;
         mCT.mCi = mSimulatedCommands;
         lenient().doReturn(mUiccCard).when(mPhone).getUiccCard();
         lenient().doReturn(mUiccCard).when(mUiccSlot).getUiccCard();
@@ -651,6 +654,10 @@ public abstract class TelephonyTest {
                 .makeWspTypeDecoder(nullable(byte[].class));
         lenient().doReturn(mImsCT).when(mTelephonyComponentFactory)
                 .makeImsPhoneCallTracker(nullable(ImsPhone.class), any(FeatureFlags.class));
+        lenient().doReturn(mCdmaSSM).when(mTelephonyComponentFactory)
+                .getCdmaSubscriptionSourceManagerInstance(nullable(Context.class),
+                        nullable(CommandsInterface.class), nullable(Handler.class),
+                        anyInt(), nullable(Object.class));
         lenient().doReturn(mImsExternalCallTracker).when(mTelephonyComponentFactory)
                 .makeImsExternalCallTracker(nullable(ImsPhone.class));
         lenient().doReturn(mImsNrSaModeHandler).when(mTelephonyComponentFactory)
@@ -664,13 +671,14 @@ public abstract class TelephonyTest {
         lenient().doReturn(mDeviceStateMonitor).when(mTelephonyComponentFactory)
                 .makeDeviceStateMonitor(nullable(Phone.class), any(FeatureFlags.class));
         lenient().doReturn(mAccessNetworksManager).when(mTelephonyComponentFactory)
-                .makeAccessNetworksManager(nullable(Phone.class), any(Looper.class),
-                        any(FeatureFlags.class));
+                .makeAccessNetworksManager(nullable(Phone.class), any(Looper.class));
         lenient().doReturn(mNitzStateMachine).when(mTelephonyComponentFactory)
                 .makeNitzStateMachine(nullable(GsmCdmaPhone.class));
         lenient().doReturn(mLocaleTracker).when(mTelephonyComponentFactory)
                 .makeLocaleTracker(nullable(Phone.class), nullable(NitzStateMachine.class),
                         nullable(Looper.class), any(FeatureFlags.class));
+        lenient().doReturn(mEriManager).when(mTelephonyComponentFactory)
+                .makeEriManager(nullable(Phone.class), anyInt());
         lenient().doReturn(mLinkBandwidthEstimator).when(mTelephonyComponentFactory)
                 .makeLinkBandwidthEstimator(nullable(Phone.class), any(Looper.class));
         lenient().doReturn(mDataProfileManager).when(mTelephonyComponentFactory)
@@ -697,6 +705,7 @@ public abstract class TelephonyTest {
         lenient().doReturn(mServiceState).when(mPhone).getServiceState();
         lenient().doReturn(mServiceState).when(mImsPhone).getServiceState();
         lenient().doReturn(mPhone).when(mImsPhone).getDefaultPhone();
+        lenient().doReturn(true).when(mPhone).isPhoneTypeGsm();
         lenient().doReturn(PhoneConstants.PHONE_TYPE_GSM).when(mPhone).getPhoneType();
         lenient().doReturn(mCT).when(mPhone).getCallTracker();
         lenient().doReturn(mSST).when(mPhone).getServiceStateTracker();
@@ -801,7 +810,6 @@ public abstract class TelephonyTest {
         lenient().doReturn(mPhone).when(mCT).getPhone();
         lenient().doReturn(mImsEcbm).when(mImsManager).getEcbmInterface();
         lenient().doReturn(mPhone).when(mInboundSmsHandler).getPhone();
-        Mockito.when(mInboundSmsHandler.getTextClassifier()).thenReturn(mTextClassifier);
         lenient().doReturn(mImsCallProfile).when(mImsCall).getCallProfile();
         lenient().doReturn(mIBinder).when(mIIntentSender).asBinder();
         doAnswer(invocation -> {
@@ -933,12 +941,15 @@ public abstract class TelephonyTest {
         replaceInstance(TelephonyComponentFactory.class, "sInstance", null,
                 mTelephonyComponentFactory);
         replaceInstance(UiccController.class, "mInstance", null, mUiccController);
+        replaceInstance(CdmaSubscriptionSourceManager.class, "sInstance", null, mCdmaSSM);
         replaceInstance(SubscriptionManagerService.class, "sInstance", null,
                 mSubscriptionManagerService);
         replaceInstance(ProxyController.class, "sProxyController", null, mProxyController);
         replaceInstance(PhoneSwitcher.class, "sPhoneSwitcher", null, mPhoneSwitcher);
         replaceInstance(ActivityManager.class, "IActivityManagerSingleton", null,
                 mIActivityManagerSingleton);
+        replaceInstance(CdmaSubscriptionSourceManager.class,
+                "mCdmaSubscriptionSourceChangedRegistrants", mCdmaSSM, mRegistrantList);
         replaceInstance(SimulatedCommandsVerifier.class, "sInstance", null,
                 mSimulatedCommandsVerifier);
         replaceInstance(Singleton.class, "mInstance", mIActivityManagerSingleton,

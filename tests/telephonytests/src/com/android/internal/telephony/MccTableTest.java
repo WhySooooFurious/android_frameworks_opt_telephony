@@ -26,6 +26,7 @@ import android.platform.test.annotations.UsesFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.timezone.MobileCountries;
+import android.timezone.TelephonyLookup;
 import android.timezone.TelephonyNetworkFinder;
 
 import androidx.test.InstrumentationRegistry;
@@ -55,7 +56,9 @@ public class MccTableTest {
 
     @Parameterized.Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
-        return FlagsParameterization.allCombinationsOf(Flags.FLAG_USE_I18N_FOR_MCC_MAPPING);
+        return FlagsParameterization.allCombinationsOf(
+                Flags.FLAG_USE_I18N_FOR_MCC_MAPPING,
+                com.android.icu.Flags.FLAG_TELEPHONY_LOOKUP_MCC_EXTENSION);
     }
 
     @Rule
@@ -152,8 +155,10 @@ public class MccTableTest {
     @Test
     public void telephonyFinder_shouldBeIdenticalToTelephonyMccTable() {
         assumeTrue(Flags.useI18nForMccMapping());
+        assumeTrue(com.android.icu.Flags.telephonyLookupMccExtension());
 
-        TelephonyNetworkFinder telephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
+        TelephonyNetworkFinder telephonyNetworkFinder =
+                TelephonyLookup.getInstance().getTelephonyNetworkFinder();
 
         MccTable.getAllMccEntries().forEach(mccEntry -> {
                 MobileCountries telephonyCountry =

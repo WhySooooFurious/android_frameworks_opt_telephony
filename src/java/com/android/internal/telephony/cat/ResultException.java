@@ -23,7 +23,7 @@ import android.os.Build;
 /**
  * Class for errors in the Result object.
  *
- * @hide
+ * {@hide}
  */
 public class ResultException extends CatException {
     private ResultCode mResult;

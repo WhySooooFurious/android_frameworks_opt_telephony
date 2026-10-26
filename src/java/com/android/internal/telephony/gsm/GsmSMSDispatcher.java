@@ -18,7 +18,6 @@ package com.android.internal.telephony.gsm;
 
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
-import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.AsyncResult;
 import android.os.Build;
@@ -35,7 +34,6 @@ import com.android.internal.telephony.SmsController;
 import com.android.internal.telephony.SmsDispatchersController;
 import com.android.internal.telephony.SmsHeader;
 import com.android.internal.telephony.SmsMessageBase;
-import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.UiccCardApplication;
@@ -56,8 +54,8 @@ public final class GsmSMSDispatcher extends SMSDispatcher {
     private GsmInboundSmsHandler mGsmInboundSmsHandler;
 
     public GsmSMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
-            GsmInboundSmsHandler gsmInboundSmsHandler, @NonNull FeatureFlags featureFlags) {
-        super(phone, smsDispatchersController, featureFlags);
+            GsmInboundSmsHandler gsmInboundSmsHandler) {
+        super(phone, smsDispatchersController);
         mCi.setOnSmsStatus(this, EVENT_NEW_SMS_STATUS_REPORT, null);
         mGsmInboundSmsHandler = gsmInboundSmsHandler;
         mUiccController = UiccController.getInstance();

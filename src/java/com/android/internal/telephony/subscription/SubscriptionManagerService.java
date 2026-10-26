@@ -141,8 +141,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -161,9 +159,6 @@ public class SubscriptionManagerService extends ISub.Stub {
 
     /** Whether enabling verbose debugging message or not. */
     private static final boolean VDBG = false;
-
-    // Compile-time debug flag for controlling worker thread behavior
-    private static final boolean USE_WORKER_THREAD = false;
 
     /**
      * The columns in {@link SimInfo} table that can be directly accessed through
@@ -239,11 +234,6 @@ public class SubscriptionManagerService extends ISub.Stub {
     /** Wrap Binder methods for testing. */
     @NonNull
     private static final BinderWrapper BINDER_WRAPPER = new BinderWrapper();
-
-    /** Regular expression to determine if a string is in MAC address format. */
-    private static final Pattern MAC_ADDRESS_PATTERN = Pattern.compile(
-            // Matches formats like 00:1B:44:11:3A:B7 or 00-1B-44-11-3A-B7
-            "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$");
 
     /** Instance of subscription manager service. */
     @NonNull
@@ -513,7 +503,15 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         mUiccController = UiccController.getInstance();
         mHandler = new Handler(looper);
-        mBackgroundHandler = new Handler(WorkerThread.get().getLooper());
+
+        if (mFeatureFlags.threadShred()) {
+            mBackgroundHandler = new Handler(WorkerThread.get().getLooper());
+        } else {
+            HandlerThread backgroundThread = new HandlerThread(LOG_TAG);
+            backgroundThread.start();
+
+            mBackgroundHandler = new Handler(backgroundThread.getLooper());
+        }
 
         mDefaultVoiceSubId = new WatchedInt(Settings.Global.getInt(mContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_VOICE_CALL_SUBSCRIPTION,
@@ -570,7 +568,7 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         Looper dbLooper = null;
 
-        if (SubscriptionManagerService.USE_WORKER_THREAD) {
+        if (mFeatureFlags.threadShred()) {
             dbLooper = WorkerThread.get().getLooper();
         } else {
             // Create a separate thread for subscription database manager.
@@ -630,10 +628,12 @@ public class SubscriptionManagerService extends ISub.Stub {
         // Broadcast sub Id on service initialized.
         broadcastSubId(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED,
                 getDefaultDataSubId());
-        mSubscriptionManagerServiceCallbacks.forEach(
-                callback -> callback.invokeFromExecutor(
-                        () -> callback.onDefaultDataSubscriptionChanged(
-                                getDefaultDataSubId())));
+        if (mFeatureFlags.ddsCallback()) {
+            mSubscriptionManagerServiceCallbacks.forEach(
+                    callback -> callback.invokeFromExecutor(
+                            () -> callback.onDefaultDataSubscriptionChanged(
+                                    getDefaultDataSubId())));
+        }
 
         broadcastSubId(TelephonyIntents.ACTION_DEFAULT_VOICE_SUBSCRIPTION_CHANGED,
                 getDefaultVoiceSubId());
@@ -870,22 +870,6 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     /**
-     * Get the stripped ICCID, which sometimes ended with 'F'. Also not doing this if the ICCID
-     * is MAC address (used by texting through bluetooth).
-     *
-     * @param iccId The original ICCID.
-     * @return The fixed ICCID.
-     */
-    @VisibleForTesting
-    @NonNull
-    public static String getStrippedIccid(@NonNull String iccId) {
-        Matcher matcher = MAC_ADDRESS_PATTERN.matcher(iccId);
-        if (matcher.matches()) return iccId;
-
-        return TextUtils.emptyIfNull(IccUtils.stripTrailingFs(iccId));
-    }
-
-    /**
      * @return The list of ICCIDs from the inserted physical SIMs.
      */
     @NonNull
@@ -900,7 +884,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 // Non euicc slots will have single port, so use default port index.
                 String iccId = uiccSlot.getIccId(TelephonyManager.DEFAULT_PORT_INDEX);
                 if (!TextUtils.isEmpty(iccId)) {
-                    iccidList.add(getStrippedIccid(iccId));
+                    iccidList.add(IccUtils.stripTrailingFs(iccId));
                 }
             }
         }
@@ -1409,7 +1393,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         }
 
         SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
-                .getSubscriptionInfoInternalByIccId(getStrippedIccid(iccId));
+                .getSubscriptionInfoInternalByIccId(IccUtils.stripTrailingFs(iccId));
         return subInfo != null && subInfo.areUiccApplicationsEnabled();
     }
 
@@ -1423,7 +1407,8 @@ public class SubscriptionManagerService extends ISub.Stub {
     @NonNull
     private String getIccId(int phoneId) {
         UiccPort port = mUiccController.getUiccPort(phoneId);
-        return (port == null) ? "" : getStrippedIccid(port.getIccId());
+        return (port == null) ? "" : TextUtils.emptyIfNull(
+                IccUtils.stripTrailingFs(port.getIccId()));
     }
 
     /**
@@ -2025,15 +2010,11 @@ public class SubscriptionManagerService extends ISub.Stub {
         enforcePermissions("getActiveSubscriptionInfoForIccId",
                 Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
 
-        if (!mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_force_phone_globals_creation)) {
-            enforceTelephonyFeatureWithException(callingPackage,
-                    "getActiveSubscriptionInfoForIccId");
-        }
+        enforceTelephonyFeatureWithException(callingPackage, "getActiveSubscriptionInfoForIccId");
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            iccId = getStrippedIccid(iccId);
+            iccId = IccUtils.stripTrailingFs(iccId);
             SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
                     .getSubscriptionInfoInternalByIccId(iccId);
 
@@ -2341,10 +2322,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 + SubscriptionManager.subscriptionTypeToString(subscriptionType) + ", "
                 + getCallingPackage());
 
-        if (!mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_force_phone_globals_creation)) {
-            enforceTelephonyFeatureWithException(getCurrentPackageName(), "addSubInfo");
-        }
+        enforceTelephonyFeatureWithException(getCurrentPackageName(), "addSubInfo");
 
         if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM) {
             if (!SubscriptionManager.isValidSlotIndex(slotIndex)) {
@@ -2367,15 +2345,14 @@ public class SubscriptionManagerService extends ISub.Stub {
                 return -1;
             }
 
-            iccId = getStrippedIccid(iccId);
+            iccId = IccUtils.stripTrailingFs(iccId);
             SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
                     .getSubscriptionInfoInternalByIccId(iccId);
 
             // Check if the record exists or not.
             if (subInfo == null) {
                 // Record does not exist.
-                if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM
-                        && mSlotIndexToSubId.containsKey(slotIndex)) {
+                if (mSlotIndexToSubId.containsKey(slotIndex)) {
                     loge("Already a subscription on slot " + slotIndex);
                     return -1;
                 }
@@ -2416,10 +2393,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 + SubscriptionManager.subscriptionTypeToString(subscriptionType) + ", "
                 + getCallingPackage());
 
-        if (!mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_force_phone_globals_creation)) {
-            enforceTelephonyFeatureWithException(getCurrentPackageName(), "removeSubInfo");
-        }
+        enforceTelephonyFeatureWithException(getCurrentPackageName(), "removeSubInfo");
 
         final long identity = Binder.clearCallingIdentity();
         try {
@@ -3079,8 +3053,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      * @param slotIndex Logical SIM slot index.
      * @return The subscription id. {@link SubscriptionManager#INVALID_SUBSCRIPTION_ID} if SIM is
-     * absent. If slotIndex is {@link SubscriptionManager#SLOT_INDEX_FOR_REMOTE_SIM_SUB}, the last
-     * inserted remote SIM subscription id will be returned.
+     * absent.
      */
     @Override
     public int getSubId(int slotIndex) {
@@ -3129,11 +3102,6 @@ public class SubscriptionManagerService extends ISub.Stub {
                     + subId + ", phoneId=" + phoneId);
             mDefaultSubId.set(subId);
 
-            if (mFeatureFlags.updateResourceConfiguration()) {
-                String mccMnc = mTelephonyManager.getSimOperatorNumeric(subId);
-                MccTable.updateMccMncConfiguration(mContext, mccMnc);
-            }
-
             Intent intent = new Intent(SubscriptionManager.ACTION_DEFAULT_SUBSCRIPTION_CHANGED);
             intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
             SubscriptionManager.putPhoneIdAndSubIdExtra(intent, phoneId, subId);
@@ -3157,7 +3125,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     @Override
     public int getDefaultSubIdAsUser(@UserIdInt int userId) {
         enforceTelephonyFeatureWithException(getCurrentPackageName(),
-                "getDefaultSubIdAsUser");
+                "getDefaultVoiceSubIdAsUser");
 
         return getDefaultAsUser(userId, mDefaultSubId.get());
     }
@@ -3246,9 +3214,11 @@ public class SubscriptionManagerService extends ISub.Stub {
 
                 broadcastSubId(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED,
                         subId);
-                mSubscriptionManagerServiceCallbacks.forEach(
-                        callback -> callback.invokeFromExecutor(
-                                () -> callback.onDefaultDataSubscriptionChanged(subId)));
+                if (mFeatureFlags.ddsCallback()) {
+                    mSubscriptionManagerServiceCallbacks.forEach(
+                            callback -> callback.invokeFromExecutor(
+                                    () -> callback.onDefaultDataSubscriptionChanged(subId)));
+                }
 
                 updateDefaultSubId();
             }
@@ -3408,7 +3378,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     @Override
     @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
-    @NonNull public int[] getActiveSubIdList(boolean visibleOnly) {
+    public int[] getActiveSubIdList(boolean visibleOnly) {
         enforcePermissions("getActiveSubIdList", Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
 
         if (!mContext.getResources().getBoolean(
@@ -3427,10 +3397,9 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
      * @param user If {@code null}, uses the calling user handle to judge which subscriptions are
      *             accessible to the caller.
-     * @return Array of the active subscription id.
+     * @return List of the active subscription id.
      */
-    @NonNull private int[] getActiveSubIdListAsUser(
-            boolean visibleOnly, @NonNull final UserHandle user) {
+    private int[] getActiveSubIdListAsUser(boolean visibleOnly, @NonNull final UserHandle user) {
         return mSlotIndexToSubId.values().stream()
                 .filter(subId -> {
                     SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
@@ -3644,10 +3613,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                     + "carrier privilege");
         }
 
-        if (!mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_force_phone_globals_creation)) {
-            enforceTelephonyFeatureWithException(callingPackage, "isActiveSubId");
-        }
+        enforceTelephonyFeatureWithException(callingPackage, "isActiveSubId");
 
         final long identity = Binder.clearCallingIdentity();
         try {
@@ -4481,7 +4447,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 // When port is inactive, sometimes valid iccid is present in the slot status,
                 // hence update the portIndex. (Pre-U behavior)
                 SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
-                        .getSubscriptionInfoInternalByIccId(getStrippedIccid(iccId));
+                        .getSubscriptionInfoInternalByIccId(IccUtils.stripTrailingFs(iccId));
                 int subId;
                 if (subInfo != null) {
                     subId = subInfo.getSubscriptionId();
@@ -4490,7 +4456,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 } else {
                     // If iccId is new, add a subscription record in the database so it can be
                     // activated later. (Pre-U behavior)
-                    subId = insertSubscriptionInfo(getStrippedIccid(iccId),
+                    subId = insertSubscriptionInfo(IccUtils.stripTrailingFs(iccId),
                             SubscriptionManager.INVALID_SIM_SLOT_INDEX, "",
                             SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM);
                     mSubscriptionDatabaseManager.setDisplayName(subId,
@@ -4560,8 +4526,12 @@ public class SubscriptionManagerService extends ISub.Stub {
             // Too many packages running with phone uid. Just return one here.
             return "com.android.phone";
         }
-        return Arrays.toString(mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
-                .getPackageManager().getPackagesForUid(Binder.getCallingUid()));
+        if (mFeatureFlags.hsumPackageManager()) {
+            return Arrays.toString(mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
+                    .getPackageManager().getPackagesForUid(Binder.getCallingUid()));
+        }
+        return Arrays.toString(mContext.getPackageManager().getPackagesForUid(
+                Binder.getCallingUid()));
     }
 
     /**
@@ -4680,6 +4650,9 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param isSatelliteESOSSupported {@code true} satellite ESOS supported true.
      */
     public void setSatelliteESOSSupported(int subId, @NonNull boolean isSatelliteESOSSupported) {
+        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
+            return;
+        }
         try {
             mSubscriptionDatabaseManager.setSatelliteESOSSupported(subId,
                     isSatelliteESOSSupported ? 1 : 0);
@@ -4713,6 +4686,9 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @return the satellite ESOS supported true or false.
      */
     public boolean getSatelliteESOSSupported(int subId) {
+        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
+            return false;
+        }
         SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager.getSubscriptionInfoInternal(
                 subId);
         if (subInfo == null) {
@@ -4870,10 +4846,15 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     @Nullable
     private String getCurrentPackageName() {
-        PackageManager pm = mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
-                .getPackageManager();
-        if (pm == null) return null;
-        String[] callingPackageNames = pm.getPackagesForUid(Binder.getCallingUid());
+        if (mFeatureFlags.hsumPackageManager()) {
+            PackageManager pm = mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
+                    .getPackageManager();
+            if (pm == null) return null;
+            String[] callingPackageNames = pm.getPackagesForUid(Binder.getCallingUid());
+            return (callingPackageNames == null) ? null : callingPackageNames[0];
+        }
+        if (mPackageManager == null) return null;
+        String[] callingPackageNames = mPackageManager.getPackagesForUid(Binder.getCallingUid());
         return (callingPackageNames == null) ? null : callingPackageNames[0];
     }
 
@@ -4989,7 +4970,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     private boolean canManageSubscription(SubscriptionInfo subInfo, String packageName) {
-        if (UserManager.isHeadlessSystemUserMode()) {
+        if (Flags.hsumPackageManager() && UserManager.isHeadlessSystemUserMode()) {
             return mSubscriptionManager.canManageSubscriptionAsUser(subInfo, packageName,
                     UserHandle.of(ActivityManager.getCurrentUser()));
         } else {

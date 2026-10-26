@@ -41,12 +41,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyChar;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
@@ -75,11 +76,10 @@ import android.os.PersistableBundle;
 import android.sysprop.TelephonyProperties;
 import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
-import android.telephony.ParsedPhoneNumber;
-import android.telephony.PhoneNumberManager;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
+import android.telephony.ims.ImsCallProfile;
 import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.ImsRegistrationAttributes;
 import android.telephony.ims.RegistrationManager;
@@ -99,7 +99,6 @@ import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.Connection;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.PhoneNotifier;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.domainselection.DomainSelectionResolver;
@@ -135,7 +134,7 @@ public class ImsPhoneTest extends TelephonyTest {
 
     private final Executor mExecutor = Runnable::run;
 
-    private ImsPhoneUT mImsPhoneUT;
+    private ImsPhone mImsPhoneUT;
     private PersistableBundle mBundle;
     private boolean mDoesRilSendMultipleCallRing;
     private static final int EVENT_SUPP_SERVICE_NOTIFICATION = 1;
@@ -145,26 +144,6 @@ public class ImsPhoneTest extends TelephonyTest {
     private static final int EVENT_CALL_RING_CONTINUE = 15;
 
     private boolean mIsPhoneUtInEcm = false;
-    private PhoneNumberManager mPhoneNumberManager;
-
-    private static class ImsPhoneUT extends ImsPhone {
-        private int mSimState = TelephonyManager.SIM_STATE_UNKNOWN;
-
-        ImsPhoneUT(Context context, PhoneNotifier notifier, Phone defaultPhone,
-                ImsManagerFactory imsManagerFactory, boolean unitTestMode,
-                FeatureFlags featureFlags) {
-            super(context, notifier, defaultPhone, imsManagerFactory, unitTestMode,
-                    featureFlags);
-        }
-
-        public int getSimState(int phoneId) {
-            return mSimState;
-        }
-
-        public void setSimState(int simState) {
-            mSimState = simState;
-        }
-    }
 
     @Before
     public void setUp() throws Exception {
@@ -176,9 +155,6 @@ public class ImsPhoneTest extends TelephonyTest {
         mConnection = mock(Connection.class);
         mImsUtInterface = mock(ImsUtInterface.class);
         mFeatureFlags = mock(FeatureFlags.class);
-        mPhoneNumberManager = mock(PhoneNumberManager.class);
-        doReturn(new ParsedPhoneNumber("", ParsedPhoneNumber.ERROR_TYPE_UNKNOWN, false)).when(
-                mPhoneNumberManager).parsePhoneNumber(any(), any());
 
         mImsCT.mForegroundCall = mForegroundCall;
         mImsCT.mBackgroundCall = mBackgroundCall;
@@ -190,9 +166,8 @@ public class ImsPhoneTest extends TelephonyTest {
 
         doReturn(true).when(mTelephonyManager).isVoiceCapable();
 
-        mImsPhoneUT = new ImsPhoneUT(mContext, mNotifier, mPhone, (c, p) -> mImsManager, true,
+        mImsPhoneUT = new ImsPhone(mContext, mNotifier, mPhone, (c, p) -> mImsManager, true,
                 mFeatureFlags);
-        mImsPhoneUT.setSimState(TelephonyManager.SIM_STATE_LOADED);
 
         mDoesRilSendMultipleCallRing = TelephonyProperties.ril_sends_multiple_call_ring()
                 .orElse(true);
@@ -218,6 +193,7 @@ public class ImsPhoneTest extends TelephonyTest {
         mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         processAllMessages();
     }
+
 
     @After
     public void tearDown() throws Exception {
@@ -304,7 +280,15 @@ public class ImsPhoneTest extends TelephonyTest {
         assertEquals(true, mImsPhoneUT.handleInCallMmiCommands("2"));
         verify(mImsCT, times(2)).holdActiveCall();
 
+        // ringing call is not idle
+        doReturn(Call.State.IDLE).when(mForegroundCall).getState();
+        doReturn(Call.State.IDLE).when(mBackgroundCall).getState();
+        doReturn(Call.State.INCOMING).when(mRingingCall).getState();
+        assertEquals(true, mImsPhoneUT.handleInCallMmiCommands("2"));
+        verify(mImsCT).acceptCall(ImsCallProfile.CALL_TYPE_VOICE);
+
         // Verify b/286499659, fixed media type
+        doReturn(true).when(mFeatureFlags).answerAudioOnlyWhenAnsweringViaMmiCode();
         doReturn(Call.State.IDLE).when(mForegroundCall).getState();
         doReturn(Call.State.IDLE).when(mBackgroundCall).getState();
         doReturn(Call.State.INCOMING).when(mRingingCall).getState();
@@ -495,6 +479,11 @@ public class ImsPhoneTest extends TelephonyTest {
 
         Connection connection = mImsPhoneUT.dial(dialString, imsDialArgs);
         assertEquals(null, connection);
+        verify(mImsCT, never()).dial(eq(dialString), any(ImsPhone.ImsDialArgs.class));
+
+        doReturn(true).when(mFeatureFlags).skipMmiCodeCheckForEmergencyCall();
+
+        mImsPhoneUT.dial(dialString, imsDialArgs);
         verify(mImsCT).dial(eq(dialString), any(ImsPhone.ImsDialArgs.class));
     }
 
@@ -867,6 +856,7 @@ public class ImsPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSetWfcModeInRoaming() throws Exception {
+        doReturn(true).when(mFeatureFlags).updateRoamingStateToSetWfcMode();
         doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
         doReturn(true).when(mPhone).isRadioOn();
 
@@ -1214,60 +1204,6 @@ public class ImsPhoneTest extends TelephonyTest {
         mImsPhoneUT.clearPhoneNumberForSourceIms();
 
         verify(mSubscriptionManagerService).setNumberFromIms(subId, "");
-
-        // Clean up
-        mContextFixture.addCallingOrSelfPermission("");
-    }
-
-    @Test
-    @SmallTest
-    public void testParsePhoneNumberUsingApi() {
-        doReturn(true).when(mFeatureFlags).enablePhoneNumberParsingApi();
-        mImsPhoneUT.setPhoneNumberManager(mPhoneNumberManager);
-
-        // In reality the method under test runs in phone process so has MODIFY_PHONE_STATE
-        mContextFixture.addCallingOrSelfPermission(MODIFY_PHONE_STATE);
-        int subId = 1;
-        doReturn(subId).when(mPhone).getSubId();
-        doReturn(new SubscriptionInfoInternal.Builder().setId(subId).setSimSlotIndex(0)
-                .setCountryIso("gb").build()).when(mSubscriptionManagerService)
-                .getSubscriptionInfoInternal(subId);
-
-        Uri[] associatedUris = new Uri[] {
-                Uri.parse("sip:+447539447777@ims.x.com"),
-                Uri.parse("tel:+447539446666")
-        };
-
-        // Set error return value for mock
-        doReturn(new ParsedPhoneNumber("", ParsedPhoneNumber.ERROR_TYPE_UNKNOWN, false)).when(
-                mPhoneNumberManager).parsePhoneNumber(any(), any());
-        mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
-
-        verify(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
-        // PhoneNumberManager returns error, but existing implementation should be performed.
-        verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
-        clearInvocations(mPhoneNumberManager);
-        clearInvocations(mSubscriptionManagerService);
-
-        // Set valid return value for mock
-        doReturn(new ParsedPhoneNumber("+447539447777", ParsedPhoneNumber.ERROR_TYPE_NONE,
-                true)).when(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
-        mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
-
-        verify(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
-        verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
-
-        // set throw exception for mock
-        doThrow(new IllegalArgumentException("test"))
-            .when(mPhoneNumberManager).parsePhoneNumber(any(), any());
-        try {
-            mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
-        } catch (Exception IllegalArgumentException) {
-            throw new AssertionError("not expected exception", IllegalArgumentException);
-        }
-
-        // put input with null
-        mImsPhoneUT.setPhoneNumberForSourceIms(null);
 
         // Clean up
         mContextFixture.addCallingOrSelfPermission("");
@@ -1686,42 +1622,6 @@ public class ImsPhoneTest extends TelephonyTest {
                 && regInfo[2] == SUGGESTED_ACTION_TRIGGER_CLEAR_RAT_BLOCKS);
     }
 
-    /**
-     * Verifies that valid throttle time is passed to RIL when IMS registration state changes to
-     * unregistered.
-     */
-    @Test
-    @SmallTest
-    public void testUpdateImsRegistrationInfoWithThrottleTime() {
-        doReturn(true).when(mFeatureFlags).supportThrottleTimeForDeregistration();
-
-        mSimulatedCommands.updateImsRegistrationInfo(0, 0, 0, 0, 0, null);
-
-        int[] regInfo = mSimulatedCommands.getImsRegistrationInfo();
-        assertNotNull(regInfo);
-        assertTrue(regInfo[0] == 0 && regInfo[1] == 0 && regInfo[2] == 0 && regInfo[4] == 0);
-
-        RegistrationManager.RegistrationCallback registrationCallback =
-                mImsPhoneUT.getImsMmTelRegistrationCallback();
-
-        ImsReasonInfo reasonInfo = new ImsReasonInfo(ImsReasonInfo.CODE_REGISTRATION_ERROR,
-                ImsReasonInfo.CODE_UNSPECIFIED, "");
-
-        // unregistered with throttle time
-        int testThrottleTimeSec = 30;
-
-        registrationCallback.onUnregistered(reasonInfo,
-                SUGGESTED_ACTION_NONE,
-                REGISTRATION_TECH_LTE,
-                testThrottleTimeSec);
-        regInfo = mSimulatedCommands.getImsRegistrationInfo();
-
-        assertTrue(regInfo[0] == RegistrationManager.REGISTRATION_STATE_NOT_REGISTERED
-                && regInfo[1] == REGISTRATION_TECH_LTE
-                && regInfo[2] == SUGGESTED_ACTION_NONE
-                && regInfo[4] == testThrottleTimeSec);
-    }
-
     @Test
     @SmallTest
     public void testImsDialArgsBuilderFromForAlternateService() {
@@ -1789,4 +1689,21 @@ public class ImsPhoneTest extends TelephonyTest {
         m.obj = AsyncResult.forMessage(m, ss, null);
         return m;
     }
+
+    @Test
+    @SmallTest
+    public void testHandleUssdRequestWithInCallMmiCode() throws Exception {
+        doReturn(Call.State.INCOMING).when(mRingingCall).getState();
+        android.os.ResultReceiver mockCallback =
+                org.mockito.Mockito.mock(android.os.ResultReceiver.class);
+        try {
+            mImsPhoneUT.handleUssdRequest("2", mockCallback);
+            fail("Expected CallStateException");
+        } catch (CallStateException e) {
+            assertEquals(Phone.CS_FALLBACK, e.getMessage());
+        }
+        // It should NOT call acceptCall because wrappedCallback is not null
+        verify(mImsCT, never()).acceptCall(anyInt());
+    }
 }
+

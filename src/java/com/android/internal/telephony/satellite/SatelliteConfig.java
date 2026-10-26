@@ -53,85 +53,30 @@ public class SatelliteConfig {
             "satelltie_access_config.json";
     private int mVersion;
     private Map<Integer, Map<String, Set<Integer>>> mSupportedServicesPerCarrier;
-    private Integer mCarrierRoamingMaxAllowedDataMode;
     private List<String> mSatelliteRegionCountryCodes;
     private Boolean mIsSatelliteRegionAllowed;
     private File mSatS2File;
     private File mSatelliteAccessConfigJsonFile;
     private SatelliteConfigData.SatelliteConfigProto mConfigData;
 
-    public SatelliteConfig() {
-        logd("SatelliteConfig: constructing from scratch");
-    }
-
-    public SatelliteConfig(@NonNull SatelliteConfig satelliteConfig) {
-        logd("SatelliteConfig: constructing through deep copy of: " + satelliteConfig);
-        new SatelliteConfig(satelliteConfig.mConfigData);
-    }
-
-    public SatelliteConfig(@NonNull SatelliteConfigData.SatelliteConfigProto configData) {
-        logd("SatelliteConfig: constructing with configData: " + configData);
+    public SatelliteConfig(SatelliteConfigData.SatelliteConfigProto configData) {
         mConfigData = configData;
         mVersion = mConfigData.version;
-        logd("mVersion: " + mVersion);
-        buildCarrierSupportedServicesPerCarrier();
-        buildCarrierRoamingConfig();
-        buildDeviceSatelliteRegion();
-    }
+        mSupportedServicesPerCarrier = getCarrierSupportedSatelliteServices();
+        mSatelliteRegionCountryCodes = List.of(
+                mConfigData.deviceSatelliteRegion.countryCodes);
+        mIsSatelliteRegionAllowed = mConfigData.deviceSatelliteRegion.isAllowed;
+        mSatS2File = null;
+        mSatelliteAccessConfigJsonFile = null;
 
-    private void buildCarrierSupportedServicesPerCarrier() {
-        logd("buildCarrierSupportedServicesPerCarrier");
-        if (mConfigData.carrierSupportedSatelliteServices == null) {
-            logd("mSupportedServicesPerCarrier: empty");
-        } else {
-            mSupportedServicesPerCarrier = getCarrierSupportedSatelliteServices();
-            logd("mSupportedServicesPerCarrier: " + mSupportedServicesPerCarrier);
-        }
-    }
-
-    private void buildCarrierRoamingConfig() {
-        logd("buildCarrierRoamingConfig");
-        if (mConfigData.carrierRoamingConfig == null) {
-            logd("mConfigData.carrierRoamingConfig: empty");
-        } else {
-            mCarrierRoamingMaxAllowedDataMode = mConfigData.carrierRoamingConfig.maxAllowedDataMode;
-            logd("mCarrierRoamingMaxAllowedDataMode: " + mCarrierRoamingMaxAllowedDataMode);
-        }
-    }
-
-    private void buildDeviceSatelliteRegion() {
-        logd("buildDeviceSatelliteRegion");
-        if (mConfigData.deviceSatelliteRegion == null) {
-            logd("mConfigData.deviceSatelliteRegion: empty");
-        } else {
-            if (mConfigData.deviceSatelliteRegion.countryCodes == null) {
-                logd("mConfigData.deviceSatelliteRegion.countryCodes is null, set empty list");
-                mSatelliteRegionCountryCodes = new ArrayList<>();
-            } else {
-                mSatelliteRegionCountryCodes = List.of(
-                        mConfigData.deviceSatelliteRegion.countryCodes);
-                logd("mSatelliteRegionCountryCodes: "
-                        + String.join(",", mSatelliteRegionCountryCodes));
-            }
-
-            mIsSatelliteRegionAllowed = mConfigData.deviceSatelliteRegion.isAllowed;
-            logd("mIsSatelliteRegionAllowed: " + mIsSatelliteRegionAllowed);
-
-            mSatS2File = null;
-            if (mConfigData.deviceSatelliteRegion.s2CellFile != null)  {
-                logd("s2CellFile size: " + mConfigData.deviceSatelliteRegion.s2CellFile.length);
-            } else {
-                logd("s2CellFile: empty");
-            }
-
-            mSatelliteAccessConfigJsonFile = null;
-            if (mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile != null)  {
-                logd("satellite_access_config_json size: "
-                        + mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile.length);
-            } else {
-                logd("satellite_access_config_json: empty");
-            }
-        }
+        Log.d(TAG, "mVersion:" + mVersion + " | "
+                + "mSupportedServicesPerCarrier:" + mSupportedServicesPerCarrier + " | "
+                + "mSatelliteRegionCountryCodes:"
+                + String.join(",", mSatelliteRegionCountryCodes) + " | "
+                + "mIsSatelliteRegionAllowed:" + mIsSatelliteRegionAllowed + " | "
+                + "s2CellFile size:" + mConfigData.deviceSatelliteRegion.s2CellFile.length  + " | "
+                + "satellite_access_config_json size:"
+                + mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile.length);
     }
 
     /**
@@ -161,31 +106,6 @@ public class SatelliteConfig {
     }
 
     /**
-     * @return An {@link Integer} representing the value of
-     * {@code mCarrierRoamingMaxAllowedDataMode}. Returns {@code null} if it is not set,
-     * which usually implies missing or incomplete configuration
-     */
-    @Nullable
-    public Integer getSatelliteMaxAllowedDataMode() {
-        if (mCarrierRoamingMaxAllowedDataMode != null) {
-            return mCarrierRoamingMaxAllowedDataMode;
-        }
-        logd("mCarrierRoamingMaxAllowedDataMode : mConfigData is null or no config data");
-        return null;
-    }
-
-    /**
-     * Overrides the satellite max allowed data mode.
-     *
-     * @param maxAllowedDataMode the new max allowed data mode
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    public void overrideSatelliteMaxAllowedDataMode(int maxAllowedDataMode) {
-        logd("overrideSatelliteMaxAllowedDataMode: " + maxAllowedDataMode);
-        mCarrierRoamingMaxAllowedDataMode = maxAllowedDataMode;
-    }
-
-    /**
      * Get satellite plmns for carrier
      *
      * @param carrierId the carrier identifier.
@@ -200,7 +120,7 @@ public class SatelliteConfig {
                 return new ArrayList<>(satelliteCapabilitiesMap.keySet());
             }
         }
-        logd("getAllSatellitePlmnsForCarrier : mConfigData is null or no config data");
+        Log.d(TAG, "getAllSatellitePlmnsForCarrier : mConfigData is null or no config data");
         return new ArrayList<>();
     }
 
@@ -219,10 +139,10 @@ public class SatelliteConfig {
             if (satelliteCapaMap != null) {
                 return satelliteCapaMap;
             } else {
-                logd("No supported services found for carrier=" + carrierId);
+                Log.d(TAG, "No supported services found for carrier=" + carrierId);
             }
         } else {
-            logd("mSupportedServicesPerCarrier is null");
+            Log.d(TAG, "mSupportedServicesPerCarrier is null");
         }
         return new HashMap<>();
     }
@@ -248,7 +168,7 @@ public class SatelliteConfig {
         if (mSatelliteRegionCountryCodes != null) {
             return mSatelliteRegionCountryCodes;
         }
-        logd("getDeviceSatelliteCountryCodes : mConfigData is null or no config data");
+        Log.d(TAG, "getDeviceSatelliteCountryCodes : mConfigData is null or no config data");
         return new ArrayList<>();
     }
 
@@ -258,7 +178,7 @@ public class SatelliteConfig {
     @Nullable
     public Boolean isSatelliteDataForAllowedRegion() {
         if (mIsSatelliteRegionAllowed == null) {
-            logd("getIsSatelliteRegionAllowed : mConfigData is null or no config data");
+            Log.d(TAG, "getIsSatelliteRegionAllowed : mConfigData is null or no config data");
         }
         return mIsSatelliteRegionAllowed;
     }
@@ -271,12 +191,12 @@ public class SatelliteConfig {
     @Nullable
     public File getSatelliteS2CellFile(@Nullable Context context) {
         if (context == null) {
-            logd("getSatelliteS2CellFile : context is null");
+            Log.d(TAG, "getSatelliteS2CellFile : context is null");
             return null;
         }
 
         if (isFileExist(mSatS2File)) {
-            logd("File mSatS2File is already exist");
+            Log.d(TAG, "File mSatS2File is already exist");
             return mSatS2File;
         }
 
@@ -285,7 +205,7 @@ public class SatelliteConfig {
                     context, mConfigData.deviceSatelliteRegion.s2CellFile, S2_CELL_FILE_NAME);
             return mSatS2File;
         }
-        logd("getSatelliteS2CellFile: "
+        Log.d(TAG, "getSatelliteS2CellFile: "
                 + "mConfigData is null or mConfigData.deviceSatelliteRegion is null");
         return null;
     }
@@ -297,12 +217,12 @@ public class SatelliteConfig {
     @Nullable
     public File getSatelliteAccessConfigJsonFile(@Nullable Context context) {
         if (context == null) {
-            logd("getSatelliteAccessConfigJsonFile : context is null");
+            Log.d(TAG, "getSatelliteAccessConfigJsonFile : context is null");
             return null;
         }
 
         if (isFileExist(mSatelliteAccessConfigJsonFile)) {
-            logd("File mSatelliteAccessConfigJsonFile is already exist");
+            Log.d(TAG, "File mSatelliteAccessConfigJsonFile is already exist");
             return mSatelliteAccessConfigJsonFile;
         }
 
@@ -312,7 +232,7 @@ public class SatelliteConfig {
                     SATELLITE_ACCESS_CONFIG_JSON_FILE_NAME);
             return mSatelliteAccessConfigJsonFile;
         }
-        logd("mSatelliteAccessConfigJsonFile: "
+        Log.d(TAG, "mSatelliteAccessConfigJsonFile: "
                 + "mConfigData is null or mConfigData.deviceSatelliteRegion is null");
         return null;
     }
@@ -324,7 +244,7 @@ public class SatelliteConfig {
      */
     @NonNull
     public int getSatelliteConfigDataVersion() {
-        logd("getSatelliteConfigDataVersion: mVersion: " + mVersion);
+        Log.d(TAG, "getSatelliteConfigDataVersion: mVersion: " + mVersion);
         return mVersion;
     }
 
@@ -339,7 +259,7 @@ public class SatelliteConfig {
             @Nullable byte[] byteArrayFile, String fileName) {
 
         if (context == null || byteArrayFile == null) {
-            logd("copySatelliteFileToPhoneDirectory : context or byteArrayFile are null");
+            Log.d(TAG, "copySatelliteFileToPhoneDirectory : context or byteArrayFile are null");
             return null;
         }
 
@@ -352,17 +272,19 @@ public class SatelliteConfig {
         try {
             InputStream inputStream = new ByteArrayInputStream(byteArrayFile);
             if (inputStream == null) {
-                logd("copySatelliteFileToPhoneDirectory: Resource=" + fileName
+                Log.d(TAG, "copySatelliteFileToPhoneDirectory: Resource=" + fileName
                         + " not found");
             } else {
                 Files.copy(inputStream, targetSatelliteFilePath,
                         StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException ex) {
-            loge("copySatelliteFileToPhoneDirectory: ex=" + ex);
+            Log.e(TAG, "copySatelliteFileToPhoneDirectory: ex=" + ex);
         }
-        logd("targetSatelliteFilePath's path: "
-                + targetSatelliteFilePath.toAbsolutePath().toString());
+        Log.d(
+                TAG,
+                "targetSatelliteFilePath's path: "
+                        + targetSatelliteFilePath.toAbsolutePath().toString());
         return targetSatelliteFilePath.toFile();
     }
 
@@ -373,55 +295,24 @@ public class SatelliteConfig {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public void cleanOtaResources(@Nullable Context context) {
         if (context == null) {
-            logd("cleanOtaResources : context is null");
+            Log.d(TAG, "cleanOtaResources : context is null");
             return;
         }
         try {
             File satelliteFileDir = context.getDir(SATELLITE_DIR_NAME, Context.MODE_PRIVATE);
             if (!satelliteFileDir.exists()) {
-                logd("cleanOtaResources: " + SATELLITE_DIR_NAME
-                        + " does not exist. No need to clean.");
+                Log.d(
+                        TAG,
+                        "cleanOtaResources: "
+                                + SATELLITE_DIR_NAME
+                                + " does not exist. No need to clean.");
                 return;
             }
-            logd("cleanOtaResources: Deleting contents under " + SATELLITE_DIR_NAME);
+            Log.d(TAG, "cleanOtaResources: Deleting contents under " + SATELLITE_DIR_NAME);
             FileUtils.deleteContents(satelliteFileDir);
         } catch (Exception e) {
-            loge("cleanOtaResources error : " + e);
+            Log.e(TAG, "cleanOtaResources error : " + e);
         }
-    }
-
-    /**
-     * This method cleans the Satellite Config OTA resources and it should be used only in CTS/Unit
-     * tests
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    public boolean hasSatelliteS2CellFile() {
-        if (mConfigData != null && mConfigData.deviceSatelliteRegion != null) {
-            if (mConfigData.deviceSatelliteRegion.s2CellFile != null
-                    && mConfigData.deviceSatelliteRegion.s2CellFile.length > 0) {
-                logd("hasSatelliteS2CellFile: s2CellFile is exist");
-                return true;
-            }
-        }
-        logd("hasSatelliteS2CellFile: s2CellFile is not exist");
-        return false;
-    }
-
-    /**
-     * This method cleans the Satellite Config OTA resources and it should be used only in CTS/Unit
-     * tests
-     */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    public boolean hasSatelliteAccessConfigFile() {
-        if (mConfigData != null && mConfigData.deviceSatelliteRegion != null) {
-            if (mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile != null
-                    && mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile.length > 0) {
-                logd("hasSatelliteAccessConfigFile: satelliteAccessConfigFile is exist");
-                return true;
-            }
-        }
-        logd("hasSatelliteAccessConfigFile: satelliteAccessConfigFile is not exist");
-        return false;
     }
 
     /**
@@ -430,39 +321,9 @@ public class SatelliteConfig {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean isFileExist(@Nullable File file) {
         if (file == null) {
-            logd("isFileExist : file is null");
+            Log.d(TAG, "isFileExist : file is null");
             return false;
         }
         return file.exists();
-    }
-
-    private static void logd(@NonNull String log) {
-        Log.d(TAG, log);
-    }
-
-    private static void loge(@NonNull String log) {
-        Log.e(TAG, log);
-    }
-
-    @Override
-    public String toString() {
-        return "SatelliteConfig{"
-                + "mVersion="
-                + mVersion
-                + ", mSupportedServicesPerCarrier="
-                + mSupportedServicesPerCarrier
-                + ", mCarrierRoamingMaxAllowedDataMode="
-                + mCarrierRoamingMaxAllowedDataMode
-                + ", mSatelliteRegionCountryCodes="
-                + mSatelliteRegionCountryCodes
-                + ", mIsSatelliteRegionAllowed="
-                + mIsSatelliteRegionAllowed
-                + ", mSatS2File="
-                + mSatS2File
-                + ", mSatelliteAccessConfigJsonFile="
-                + mSatelliteAccessConfigJsonFile
-                + ", mConfigData="
-                + mConfigData
-                + "}";
     }
 }

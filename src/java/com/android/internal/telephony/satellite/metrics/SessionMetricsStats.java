@@ -31,7 +31,6 @@ import android.util.Log;
 
 import com.android.internal.telephony.metrics.SatelliteStats;
 import com.android.internal.telephony.satellite.DatagramDispatcher;
-import com.android.internal.telephony.satellite.SatelliteConstants;
 
 /**
  * Stats to log to satellite session metrics
@@ -66,9 +65,6 @@ public class SessionMetricsStats {
     private boolean mIsNtnOnlyCarrier;
     private int mMaxInactivityDurationSec;
     private SatelliteSessionStats mDatagramStats;
-    private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
-
-    private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
 
     private SessionMetricsStats() {
         initializeSessionMetricsParam();
@@ -292,20 +288,6 @@ public class SessionMetricsStats {
         return this;
     }
 
-    /** Capture the global connect type of the satellite service */
-    public SessionMetricsStats setSupportedConnectionMode(int supportedConnectionMode) {
-        mSupportedConnectionMode = supportedConnectionMode;
-        logd("setSupportedConnectionMode(" + mSupportedConnectionMode + ")");
-        return this;
-    }
-
-    /** Capture the global connect type of the satellite service */
-    public SessionMetricsStats setSessionConnectionMode(int sessionConnectionMode) {
-        mSessionConnectionMode = sessionConnectionMode;
-        logd("setSessionConnectionMode(" + mSessionConnectionMode + ")");
-        return this;
-    }
-
     /** Report the session metrics atoms to PersistAtomsStorage in telephony. */
     public void reportSessionMetrics() {
         SatelliteStats.SatelliteSessionParams sessionParams =
@@ -330,8 +312,6 @@ public class SessionMetricsStats {
                         .setIsEmergency(mIsEmergency)
                         .setIsNtnOnlyCarrier(mIsNtnOnlyCarrier)
                         .setMaxInactivityDurationSec(mMaxInactivityDurationSec)
-                        .setSupportedConnectionMode(mSupportedConnectionMode)
-                        .setSessionConnectionMode(mSessionConnectionMode)
                         .build();
         logd("reportSessionMetrics: " + sessionParams.toString());
         SatelliteStats.getInstance().onSatelliteSessionMetrics(sessionParams);
@@ -395,8 +375,6 @@ public class SessionMetricsStats {
         mIsEmergency = false;
         mIsNtnOnlyCarrier = false;
         mMaxInactivityDurationSec = 0;
-        mSupportedConnectionMode = SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
-        mSessionConnectionMode = SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN;
     }
 
     public void resetSessionStatsShadowCounters() {

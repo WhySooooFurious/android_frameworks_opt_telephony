@@ -125,7 +125,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
     private int mSrvccState = -1;
     private ServiceState mServiceState = null;
     private int mRadioPowerState = RADIO_POWER_UNAVAILABLE;
-    private boolean mCarrierNetworkChange = false;
     private int mDataConnectionState = TelephonyManager.DATA_UNKNOWN;
     private int mNetworkType = TelephonyManager.NETWORK_TYPE_UNKNOWN;
     private int mDataActivity = TelephonyManager.DATA_ACTIVITY_NONE;
@@ -207,29 +206,28 @@ public class TelephonyRegistryTest extends TelephonyTest {
                 TelephonyCallback.EVENT_OUTGOING_EMERGENCY_SMS);
     }
 
-    public class TelephonyCallbackWrapper extends TelephonyCallback
-            implements TelephonyCallback.SrvccStateListener,
-                    TelephonyCallback.PhoneCapabilityListener,
-                    TelephonyCallback.ActiveDataSubscriptionIdListener,
-                    TelephonyCallback.RadioPowerStateListener,
-                    TelephonyCallback.CarrierNetworkListener,
-                    TelephonyCallback.PreciseDataConnectionStateListener,
-                    TelephonyCallback.DataConnectionStateListener,
-                    TelephonyCallback.DisplayInfoListener,
-                    TelephonyCallback.LinkCapacityEstimateChangedListener,
-                    TelephonyCallback.PhysicalChannelConfigListener,
-                    TelephonyCallback.CellLocationListener,
-                    TelephonyCallback.ServiceStateListener,
-                    TelephonyCallback.CellInfoListener,
-                    TelephonyCallback.BarringInfoListener,
-                    TelephonyCallback.RegistrationFailedListener,
-                    TelephonyCallback.DataActivityListener,
-                    TelephonyCallback.SimultaneousCellularCallingSupportListener,
-                    TelephonyCallback.EmergencyCallbackModeListener,
-                    TelephonyCallback.CarrierRoamingNtnListener,
-                    TelephonyCallback.SecurityAlgorithmsListener,
-                    TelephonyCallback.CellularIdentifierDisclosedListener,
-                    TelephonyCallback.CallAttributesListener {
+    public class TelephonyCallbackWrapper extends TelephonyCallback implements
+            TelephonyCallback.SrvccStateListener,
+            TelephonyCallback.PhoneCapabilityListener,
+            TelephonyCallback.ActiveDataSubscriptionIdListener,
+            TelephonyCallback.RadioPowerStateListener,
+            TelephonyCallback.PreciseDataConnectionStateListener,
+            TelephonyCallback.DataConnectionStateListener,
+            TelephonyCallback.DisplayInfoListener,
+            TelephonyCallback.LinkCapacityEstimateChangedListener,
+            TelephonyCallback.PhysicalChannelConfigListener,
+            TelephonyCallback.CellLocationListener,
+            TelephonyCallback.ServiceStateListener,
+            TelephonyCallback.CellInfoListener,
+            TelephonyCallback.BarringInfoListener,
+            TelephonyCallback.RegistrationFailedListener,
+            TelephonyCallback.DataActivityListener,
+            TelephonyCallback.SimultaneousCellularCallingSupportListener,
+            TelephonyCallback.EmergencyCallbackModeListener,
+            TelephonyCallback.CarrierRoamingNtnListener,
+            TelephonyCallback.SecurityAlgorithmsListener,
+            TelephonyCallback.CellularIdentifierDisclosedListener,
+            TelephonyCallback.CallAttributesListener {
         // This class isn't mockable to get invocation counts because the IBinder is null and
         // crashes the TelephonyRegistry. Make a cheesy verify(times()) alternative.
         public AtomicInteger invocationCount = new AtomicInteger(0);
@@ -261,13 +259,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
             invocationCount.incrementAndGet();
             mRadioPowerState = state;
         }
-
-        @Override
-        public void onCarrierNetworkChange(boolean active) {
-            invocationCount.incrementAndGet();
-            mCarrierNetworkChange = active;
-        }
-
         @Override
         public void onPreciseDataConnectionStateChanged(PreciseDataConnectionState preciseState) {
             invocationCount.incrementAndGet();
@@ -509,143 +500,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
         mTelephonyRegistry.notifyActiveDataSubIdChanged(activeSubId);
         processAllMessages();
         assertEquals(activeSubId, mActiveSubId);
-    }
-
-    @Test
-    @SmallTest
-    public void testCarrierNetworkChangeWithSubId_initialStateIsFalse() {
-        int subId = 1;
-        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
-        doReturn(0 /*slotIndex*/).when(mMockSubInfo).getSimSlotIndex();
-        int[] events = {TelephonyCallback.EVENT_CARRIER_NETWORK_CHANGED};
-
-        mTelephonyRegistry.listenWithEventList(
-                false /*renounceFineLocationAccess*/,
-                false /*renounceCoarseLocationAccess*/,
-                subId,
-                mContext.getOpPackageName(),
-                mContext.getAttributionTag(),
-                mTelephonyCallback.callback,
-                events,
-                true /*notifyNow*/);
-
-        processAllMessages();
-        assertFalse(mCarrierNetworkChange);
-    }
-
-    @Test
-    @SmallTest
-    public void testCarrierNetworkChangeWithSubId_notifyFalse() {
-        int subId = 1;
-        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
-                .when(mTelephonyManager)
-                .getCarrierPrivilegeStatus(anyInt());
-        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
-        int phoneId = 0;
-        doReturn(phoneId).when(mMockSubInfo).getSimSlotIndex();
-        int[] events = {TelephonyCallback.EVENT_CARRIER_NETWORK_CHANGED};
-
-        mTelephonyRegistry.listenWithEventList(
-                false /*renounceFineLocationAccess*/,
-                false /*renounceCoarseLocationAccess*/,
-                subId,
-                mContext.getOpPackageName(),
-                mContext.getAttributionTag(),
-                mTelephonyCallback.callback,
-                events,
-                true /*notifyNow*/);
-
-        mTelephonyRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(phoneId, subId, false);
-        processAllMessages();
-        assertFalse(mCarrierNetworkChange);
-    }
-
-    @Test
-    @SmallTest
-    public void testCarrierNetworkChangeWithSubId_notifyTrue() {
-        int subId = 1;
-        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
-                .when(mTelephonyManager)
-                .getCarrierPrivilegeStatus(anyInt());
-        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
-        int phoneId = 0;
-        doReturn(phoneId).when(mMockSubInfo).getSimSlotIndex();
-        int[] events = {TelephonyCallback.EVENT_CARRIER_NETWORK_CHANGED};
-
-        mTelephonyRegistry.listenWithEventList(
-                false /*renounceFineLocationAccess*/,
-                false /*renounceCoarseLocationAccess*/,
-                subId,
-                mContext.getOpPackageName(),
-                mContext.getAttributionTag(),
-                mTelephonyCallback.callback,
-                events,
-                true /*notifyNow*/);
-
-        mTelephonyRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(phoneId, subId, true);
-        processAllMessages();
-        assertTrue(mCarrierNetworkChange);
-    }
-
-    @Test
-    @SmallTest
-    public void testCarrierNetworkChangeForPhone_updatesOnRegistration() {
-        int subId = 1;
-        int phoneId = 0;
-        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
-                .when(mTelephonyManager)
-                .getCarrierPrivilegeStatus(anyInt());
-        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
-        doReturn(phoneId).when(mMockSubInfo).getSimSlotIndex();
-        int[] events = {TelephonyCallback.EVENT_CARRIER_NETWORK_CHANGED};
-
-        assertFalse(mCarrierNetworkChange);
-        mTelephonyRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(
-                phoneId, INVALID_SUBSCRIPTION_ID, true);
-        mTelephonyRegistry.listenWithEventList(
-                false /*renounceFineLocationAccess*/,
-                false /*renounceCoarseLocationAccess*/,
-                subId,
-                mContext.getOpPackageName(),
-                mContext.getAttributionTag(),
-                mTelephonyCallback.callback,
-                events,
-                true /*notifyNow*/);
-
-        processAllMessages();
-        assertTrue(mCarrierNetworkChange);
-    }
-
-    @Test
-    @SmallTest
-    public void testCarrierNetworkChangeForPhone_notifiesSubListener() {
-        int subId = 1;
-        int phoneId = 0;
-        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
-                .when(mTelephonyManager)
-                .getCarrierPrivilegeStatus(anyInt());
-        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
-        doReturn(phoneId).when(mMockSubInfo).getSimSlotIndex();
-        int[] events = {TelephonyCallback.EVENT_CARRIER_NETWORK_CHANGED};
-
-        mTelephonyRegistry.listenWithEventList(
-                false /*renounceFineLocationAccess*/,
-                false /*renounceCoarseLocationAccess*/,
-                subId,
-                mContext.getOpPackageName(),
-                mContext.getAttributionTag(),
-                mTelephonyCallback.callback,
-                events,
-                true /*notifyNow*/);
-
-        mTelephonyRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(phoneId, subId, true);
-        processAllMessages();
-        assertTrue(mCarrierNetworkChange);
-
-        mTelephonyRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(
-                phoneId, INVALID_SUBSCRIPTION_ID, false);
-        processAllMessages();
-        assertFalse(mCarrierNetworkChange);
     }
 
     /**
@@ -1236,11 +1090,8 @@ public class TelephonyRegistryTest extends TelephonyTest {
                         false /*isConditionallyBarred*/,
                         30 /*conditionalBarringFactor*/,
                         10 /*conditionalBarringTimeSeconds*/));
-        final CellIdentityLte testCellIdentity = new CellIdentityLte(
-                777 /*mcc*/, 333 /*mnc*/,
-                12345 /*ci*/, 222 /*pci*/,
-                13579 /*tac*/);
-        BarringInfo info = new BarringInfo(testCellIdentity, bsi);
+        BarringInfo info = new BarringInfo(
+                new CellIdentityLte(777, 333, 12345, 222, 13579), bsi);
         // 1. Register listener which requires location access.
         mTelephonyRegistry.listenWithEventList(false, false, subId, mContext.getOpPackageName(),
                 mContext.getAttributionTag(), mTelephonyCallback.callback, events, true);
@@ -1255,13 +1106,17 @@ public class TelephonyRegistryTest extends TelephonyTest {
         assertEquals(mBarringInfo
                         .getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE),
                 info.getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE));
-
-        if (TextUtils.equals(Manifest.permission.ACCESS_FINE_LOCATION, permission)) {
-            assertEquals(testCellIdentity, mBarringInfo.getCellIdentity());
+        String log = mBarringInfo.toString();
+        assertTrue(log.contains("777"));
+        assertTrue(log.contains("333"));
+        if (permission != null && permission.equals(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            assertTrue(log.contains("12345"));
+            assertTrue(log.contains("222"));
+            assertTrue(log.contains("13579"));
         } else {
-            assertEquals(
-                    testCellIdentity.sanitizeLocationInfo(),
-                    mBarringInfo.getCellIdentity());
+            assertFalse(log.contains("12345"));
+            assertFalse(log.contains("222"));
+            assertFalse(log.contains("13579"));
         }
 
         // Duplicate BarringInfo notifications do not trigger callback
@@ -1279,11 +1134,14 @@ public class TelephonyRegistryTest extends TelephonyTest {
         assertEquals(3, mTelephonyCallback.invocationCount.get());
         assertNotNull(mBarringInfo);
         assertEquals(mBarringInfo
-                .getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE),
+                        .getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE),
                 info.getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE));
-        assertEquals(
-                testCellIdentity.sanitizeLocationInfo(),
-                mBarringInfo.getCellIdentity());
+        log = mBarringInfo.toString();
+        assertTrue(log.contains("777"));
+        assertTrue(log.contains("333"));
+        assertFalse(log.contains("12345"));
+        assertFalse(log.contains("222"));
+        assertFalse(log.contains("13579"));
     }
 
     @Test
@@ -1825,6 +1683,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_EMERGENCY_CALLBACK_MODE_NOTIFICATION)
     public void testNotifyCallbackModeStarted() {
         final long durationMillis = 1000;
         int[] events = {TelephonyCallback.EVENT_EMERGENCY_CALLBACK_MODE_CHANGED};
@@ -1841,6 +1700,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_EMERGENCY_CALLBACK_MODE_NOTIFICATION)
     public void testNotifyCallbackModeReStarted() {
         final long durationMillis = 1000;
         int[] events = {TelephonyCallback.EVENT_EMERGENCY_CALLBACK_MODE_CHANGED};
@@ -1857,6 +1717,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_EMERGENCY_CALLBACK_MODE_NOTIFICATION)
     public void testNotifyCallbackModeStopped() {
         final int reason = TelephonyManager.STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED;
         int[] events = {TelephonyCallback.EVENT_EMERGENCY_CALLBACK_MODE_CHANGED};
@@ -1888,6 +1749,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
     public void testNotifyCarrierRoamingNtnEligibleStateChanged() {
         int subId = INVALID_SUBSCRIPTION_ID;
         doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
@@ -1903,6 +1765,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
     public void testNotifyCarrierRoamingNtnAvailableServicesChanged() {
         int subId = INVALID_SUBSCRIPTION_ID;
         doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
@@ -1950,8 +1813,9 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
     public void testNotifyCarrierRoamingNtnSignalStrengthChanged() {
-        int subId = 2;
+        int subId = INVALID_SUBSCRIPTION_ID;
         doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
         doReturn(0/*slotIndex*/).when(mMockSubInfo).getSimSlotIndex();
         int[] events = {TelephonyCallback.EVENT_CARRIER_ROAMING_NTN_SIGNAL_STRENGTH_CHANGED};
@@ -1967,6 +1831,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_SATELLITE_STATE_CHANGE_LISTENER)
     public void testNotifySatelliteStateChanged_onRegistration_getNotified() {
         MySatelliteStateChangeListener listener = new MySatelliteStateChangeListener();
         // Set initial satellite enabled state to true
@@ -1988,6 +1853,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_SATELLITE_STATE_CHANGE_LISTENER)
     public void testNotifySatelliteStateChanged_duringRegistration_getNotified() {
         MySatelliteStateChangeListener listener = new MySatelliteStateChangeListener();
         // Set initial satellite enabled state to true
@@ -2011,6 +1877,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_SATELLITE_STATE_CHANGE_LISTENER)
     public void testNotifySatelliteStateChanged_removeRegistration_notNotified() {
         MySatelliteStateChangeListener listener = new MySatelliteStateChangeListener();
         // Set initial satellite enabled state to true

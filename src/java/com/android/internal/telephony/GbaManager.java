@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -215,7 +216,13 @@ public class GbaManager {
 
         mFeatureFlags = featureFlags;
 
-        mHandler = new GbaManagerHandler(looper);
+        if (mFeatureFlags.threadShred()) {
+            mHandler = new GbaManagerHandler(looper);
+        } else {
+            HandlerThread headlerThread = new HandlerThread(mLogTag);
+            headlerThread.start();
+            mHandler = new GbaManagerHandler(headlerThread.getLooper());
+        }
 
         if (mReleaseTime < 0) {
             mHandler.sendEmptyMessage(EVENT_BIND_SERVICE);
@@ -229,8 +236,13 @@ public class GbaManager {
     public static GbaManager make(Context context, int subId,
             String servicePackageName, int releaseTime, FeatureFlags featureFlags) {
         GbaManager gm;
-        gm = new GbaManager(context, subId, servicePackageName, releaseTime,
-                RcsStats.getInstance(), WorkerThread.get().getLooper(), featureFlags);
+        if (featureFlags.threadShred()) {
+            gm = new GbaManager(context, subId, servicePackageName, releaseTime,
+                    RcsStats.getInstance(), WorkerThread.get().getLooper(), featureFlags);
+        } else {
+            gm = new GbaManager(context, subId, servicePackageName, releaseTime,
+                    RcsStats.getInstance(), null, featureFlags);
+        }
         synchronized (sGbaManagers) {
             sGbaManagers.put(subId, gm);
         }
@@ -525,6 +537,9 @@ public class GbaManager {
     @VisibleForTesting
     public void destroy() {
         mHandler.removeCallbacksAndMessages(null);
+        if (!mFeatureFlags.threadShred()) {
+            mHandler.getLooper().quit();
+        }
         mRequestQueue.clear();
         mCallbacks.clear();
         unbindService();

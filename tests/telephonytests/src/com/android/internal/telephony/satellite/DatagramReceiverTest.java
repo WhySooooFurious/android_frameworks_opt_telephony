@@ -75,7 +75,6 @@ import org.mockito.MockitoAnnotations;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -87,12 +86,12 @@ public class DatagramReceiverTest extends TelephonyTest {
     private static final long TEST_DATAGRAM_WAIT_FOR_CONNECTED_STATE_TIMEOUT_MILLIS =
             TimeUnit.SECONDS.toMillis(60);
 
-    private TestDatagramReceiver mDatagramReceiverUT;
+    private DatagramReceiver mDatagramReceiverUT;
     private DatagramReceiver.SatelliteDatagramListenerHandler mSatelliteDatagramListenerHandler;
     private TestDatagramReceiver mTestDemoModeDatagramReceiver;
 
     @Mock private SatelliteController mMockSatelliteController;
-    @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
+    @Mock private DatagramController mMockDatagramController;
     @Mock private SatelliteModemInterface mMockSatelliteModemInterface;
     @Mock private ControllerMetricsStats mMockControllerMetricsStats;
     @Mock private SatelliteSessionController mMockSatelliteSessionController;
@@ -130,8 +129,7 @@ public class DatagramReceiverTest extends TelephonyTest {
         replaceInstance(SessionMetricsStats.class, "sInstance", null,
                 mMockSessionMetricsStats);
 
-        doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
-        mDatagramReceiverUT = new TestDatagramReceiver(mContext, Looper.myLooper(), mFeatureFlags,
+        mDatagramReceiverUT = DatagramReceiver.make(mContext, Looper.myLooper(), mFeatureFlags,
                 mMockDatagramController);
         mTestDemoModeDatagramReceiver = new TestDatagramReceiver(mContext, Looper.myLooper(),
                 mFeatureFlags,
@@ -148,10 +146,6 @@ public class DatagramReceiverTest extends TelephonyTest {
         when(mMockDatagramController.needsWaitingForSatelliteConnected(
                 eq(SatelliteManager.DATAGRAM_TYPE_UNKNOWN))).thenReturn(false);
         when(mMockSatelliteController.getSatelliteCarrierId()).thenReturn(UNKNOWN_CARRIER_ID);
-        when(mMockSatelliteController.getSupportedConnectTypeMetrics())
-                .thenReturn(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN);
-        when(mMockSatelliteController.getSessionConnectTypeMetrics()).thenReturn(SatelliteConstants
-                .SESSION_NTN_CONNECT_TYPE_UNKNOWN);
         processAllMessages();
     }
 
@@ -171,13 +165,11 @@ public class DatagramReceiverTest extends TelephonyTest {
     @Test
     public void testPollPendingSatelliteDatagrams_usingSatelliteModemInterface_success()
             throws Exception {
-        TestDatagramReceiver testDatagramReceiver = new TestDatagramReceiver(mContext,
-                Looper.myLooper(), mFeatureFlags, mMockDatagramController);
         doReturn(true).when(mMockSatelliteModemInterface).isSatelliteServiceSupported();
         doAnswer(invocation -> {
             Message message = (Message) invocation.getArguments()[0];
 
-            testDatagramReceiver.obtainMessage(2 /*EVENT_POLL_PENDING_SATELLITE_DATAGRAMS_DONE*/,
+            mDatagramReceiverUT.obtainMessage(2 /*EVENT_POLL_PENDING_SATELLITE_DATAGRAMS_DONE*/,
                             new AsyncResult(message.obj, null, null))
                     .sendToTarget();
             return null;
@@ -188,7 +180,7 @@ public class DatagramReceiverTest extends TelephonyTest {
                 .thenReturn(TEST_DATAGRAM_WAIT_FOR_CONNECTED_STATE_TIMEOUT_MILLIS);
         mResultListener.clear();
 
-        testDatagramReceiver.pollPendingSatelliteDatagrams(SUB_ID, mResultListener::offer);
+        mDatagramReceiverUT.pollPendingSatelliteDatagrams(SUB_ID, mResultListener::offer);
         processAllMessages();
         mInOrder.verify(mMockDatagramController)
                 .needsWaitingForSatelliteConnected(eq(SatelliteManager.DATAGRAM_TYPE_UNKNOWN));
@@ -198,11 +190,11 @@ public class DatagramReceiverTest extends TelephonyTest {
                 eq(SatelliteManager.SATELLITE_RESULT_SUCCESS));
         mInOrder.verify(mMockDatagramController).getDatagramWaitTimeForConnectedState(eq(false));
         verifyNoMoreInteractions(mMockSatelliteModemInterface);
-        assertTrue(testDatagramReceiver.isDatagramWaitForConnectedStateTimerStarted());
+        assertTrue(mDatagramReceiverUT.isDatagramWaitForConnectedStateTimerStarted());
 
         doReturn(false).when(mMockDatagramController)
                 .needsWaitingForSatelliteConnected(eq(SatelliteManager.DATAGRAM_TYPE_UNKNOWN));
-        testDatagramReceiver.onSatelliteModemStateChanged(
+        mDatagramReceiverUT.onSatelliteModemStateChanged(
                 SatelliteManager.SATELLITE_MODEM_STATE_CONNECTED);
         processAllMessages();
 
@@ -215,20 +207,20 @@ public class DatagramReceiverTest extends TelephonyTest {
                 .pollPendingSatelliteDatagrams(any(Message.class));
         assertEquals(1, mResultListener.size());
         assertThat(mResultListener.peek()).isEqualTo(SatelliteManager.SATELLITE_RESULT_SUCCESS);
-        assertFalse(testDatagramReceiver.isDatagramWaitForConnectedStateTimerStarted());
+        assertFalse(mDatagramReceiverUT.isDatagramWaitForConnectedStateTimerStarted());
 
         clearInvocations(mMockSatelliteModemInterface);
         clearInvocations(mMockSessionMetricsStats);
         mResultListener.clear();
         doReturn(true).when(mMockDatagramController)
                 .needsWaitingForSatelliteConnected(eq(SatelliteManager.DATAGRAM_TYPE_UNKNOWN));
-        testDatagramReceiver.pollPendingSatelliteDatagrams(SUB_ID, mResultListener::offer);
+        mDatagramReceiverUT.pollPendingSatelliteDatagrams(SUB_ID, mResultListener::offer);
         processAllMessages();
         mInOrder.verify(mMockDatagramController)
                 .needsWaitingForSatelliteConnected(eq(SatelliteManager.DATAGRAM_TYPE_UNKNOWN));
         mInOrder.verify(mMockDatagramController).getDatagramWaitTimeForConnectedState(eq(false));
         verifyNoMoreInteractions(mMockSatelliteModemInterface);
-        assertTrue(testDatagramReceiver.isDatagramWaitForConnectedStateTimerStarted());
+        assertTrue(mDatagramReceiverUT.isDatagramWaitForConnectedStateTimerStarted());
 
         moveTimeForward(TEST_DATAGRAM_WAIT_FOR_CONNECTED_STATE_TIMEOUT_MILLIS);
         processAllMessages();
@@ -245,7 +237,7 @@ public class DatagramReceiverTest extends TelephonyTest {
         assertThat(mResultListener.peek()).isEqualTo(
                 SatelliteManager.SATELLITE_RESULT_NOT_REACHABLE);
         verify(mMockSessionMetricsStats, times(1)).addCountOfFailedIncomingDatagram();
-        assertFalse(testDatagramReceiver.isDatagramWaitForConnectedStateTimerStarted());
+        assertFalse(mDatagramReceiverUT.isDatagramWaitForConnectedStateTimerStarted());
 
         mResultListener.clear();
         mDatagramReceiverUT.onSatelliteModemStateChanged(
@@ -519,15 +511,13 @@ public class DatagramReceiverTest extends TelephonyTest {
                 .isEqualTo(SatelliteManager.SATELLITE_RESULT_NOT_SUPPORTED);
     }
 
-    public static class TestDatagramReceiver extends DatagramReceiver {
+    private static class TestDatagramReceiver extends DatagramReceiver {
         private long mLong =  SATELLITE_ALIGN_TIMEOUT;
 
-        public TestDatagramReceiver(@NonNull Context context, @NonNull Looper looper,
+        TestDatagramReceiver(@NonNull Context context, @NonNull Looper looper,
                 @NonNull FeatureFlags featureFlags,
                 @NonNull DatagramController datagramController) {
             super(context, looper, featureFlags, datagramController);
-            make(context, looper, featureFlags, datagramController);
-
         }
 
         @Override
@@ -536,7 +526,7 @@ public class DatagramReceiverTest extends TelephonyTest {
         }
 
         @Override
-        protected void setDeviceAlignedWithSatellite(boolean isAligned) {
+        public void setDeviceAlignedWithSatellite(boolean isAligned) {
             super.setDeviceAlignedWithSatellite(isAligned);
         }
 
@@ -547,29 +537,6 @@ public class DatagramReceiverTest extends TelephonyTest {
 
         public void setDuration(long duration) {
             mLong = duration;
-        }
-
-        @Override
-        protected boolean isDatagramWaitForConnectedStateTimerStarted() {
-            return super.isDatagramWaitForConnectedStateTimerStarted();
-        }
-
-        @Override
-        protected int registerForSatelliteDatagram(int subId,
-                @NonNull ISatelliteDatagramCallback callback) {
-            return super.registerForSatelliteDatagram(subId, callback);
-        }
-
-        @Override
-        protected void pollPendingSatelliteDatagrams(
-                int subId, @NonNull Consumer<Integer> callback) {
-            super.pollPendingSatelliteDatagrams(subId, callback);
-        }
-
-        @Override
-        protected void onSatelliteModemStateChanged(
-                @SatelliteManager.SatelliteModemState int state) {
-            super.onSatelliteModemStateChanged(state);
         }
     }
 

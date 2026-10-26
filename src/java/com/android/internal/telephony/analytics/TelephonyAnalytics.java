@@ -32,6 +32,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.provider.Telephony.Sms.Intents;
@@ -51,6 +52,7 @@ import com.android.internal.telephony.InboundSmsHandler;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.ServiceStateTracker;
+import com.android.internal.telephony.flags.Flags;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
@@ -73,6 +75,7 @@ public class TelephonyAnalytics {
     private static final String TAG = TelephonyAnalytics.class.getSimpleName();
     protected static final int INVALID_SUB_ID = -1;
     private final int mSlotIndex;
+    private final HandlerThread mHandlerThread;
     private final Handler mHandler;
     private ExecutorService mExecutorService;
     protected TelephonyAnalyticsUtil mTelephonyAnalyticsUtil;
@@ -114,7 +117,15 @@ public class TelephonyAnalytics {
         mExecutor = Runnable::run;
         mSubscriptionManager = mContext.getSystemService(SubscriptionManager.class);
         mSlotIndex = mPhone.getPhoneId();
-        mHandler = new Handler(BackgroundThread.get().getLooper());
+
+        if (Flags.threadShred()) {
+            mHandlerThread = null; // TODO: maybe this doesn't need to be a member variable
+            mHandler = new Handler(BackgroundThread.get().getLooper());
+        } else {
+            mHandlerThread = new HandlerThread(TelephonyAnalytics.class.getSimpleName());
+            mHandlerThread.start();
+            mHandler = new Handler(mHandlerThread.getLooper());
+        }
         mExecutorService = Executors.newSingleThreadExecutor();
         mTelephonyAnalyticsUtil = TelephonyAnalyticsUtil.getInstance(mContext);
         initializeAnalyticsClasses();

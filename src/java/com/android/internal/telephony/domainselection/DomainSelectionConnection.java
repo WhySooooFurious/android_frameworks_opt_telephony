@@ -51,6 +51,7 @@ import com.android.internal.telephony.IWwanSelectorCallback;
 import com.android.internal.telephony.IWwanSelectorResultCallback;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.data.AccessNetworksManager.QualifiedNetworks;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.util.TelephonyUtils;
 
 import java.io.PrintWriter;
@@ -188,7 +189,8 @@ public class DomainSelectionConnection {
                     return;
                 }
                 DomainSelectionConnection.this.onSelectionTerminated(cause);
-                if (!mIsEmergency || !checkState(STATUS_DOMAIN_SELECTED)) {
+                if (!Flags.hangupEmergencyCallForCrossSimRedialing()
+                        || !mIsEmergency || !checkState(STATUS_DOMAIN_SELECTED)) {
                     dispose();
                 }
             }

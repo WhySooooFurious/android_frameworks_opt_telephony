@@ -31,6 +31,7 @@ import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.RegistrantList;
@@ -202,16 +203,22 @@ public class TelephonyCountryDetector extends Handler {
     }
 
     /** @return the singleton instance of the {@link TelephonyCountryDetector} */
-    public static synchronized TelephonyCountryDetector getInstance(
-            @NonNull Context context,
+    public static synchronized TelephonyCountryDetector getInstance(@NonNull Context context,
             FeatureFlags featureFlags) {
         if (sInstance == null) {
-            sInstance = new TelephonyCountryDetector(
-                    WorkerThread.get().getLooper(),
-                    context,
-                    context.getSystemService(LocationManager.class),
-                    context.getSystemService(ConnectivityManager.class),
-                    featureFlags);
+            if (featureFlags.threadShred()) {
+                sInstance = new TelephonyCountryDetector(WorkerThread.get().getLooper(), context,
+                        context.getSystemService(LocationManager.class),
+                        context.getSystemService(ConnectivityManager.class),
+                        featureFlags);
+            } else {
+                HandlerThread handlerThread = new HandlerThread("TelephonyCountryDetector");
+                handlerThread.start();
+                sInstance = new TelephonyCountryDetector(handlerThread.getLooper(), context,
+                        context.getSystemService(LocationManager.class),
+                        context.getSystemService(ConnectivityManager.class),
+                        featureFlags);
+            }
         }
         return sInstance;
     }
@@ -229,15 +236,7 @@ public class TelephonyCountryDetector extends Handler {
         }
 
         List<String> result = new ArrayList<>();
-        Phone[] phones;
-        try {
-            phones = PhoneFactory.getPhones();
-        } catch (IllegalStateException e) {
-            logd("getCurrentNetworkCountryIso: PhoneFactory.getPhones() failed, e=" + e);
-            return result;
-        }
-
-        for (Phone phone : phones) {
+        for (Phone phone : PhoneFactory.getPhones()) {
             String countryIso = getNetworkCountryIsoForPhone(phone);
             if (isValid(countryIso)) {
                 String countryIsoInUpperCase = countryIso.toUpperCase(Locale.US);

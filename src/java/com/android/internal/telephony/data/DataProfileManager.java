@@ -312,7 +312,7 @@ public class DataProfileManager extends Handler {
                     .filter(dp -> dp.canSatisfy(NetworkCapabilities.NET_CAPABILITY_IMS))
                     .findFirst()
                     .orElse(null);
-            if (dataProfile == null && mDataConfigManager.isDefaultImsApnEnabled()) {
+            if (dataProfile == null) {
                 profiles.add(new DataProfile.Builder()
                         .setApnSetting(buildDefaultApnSetting("DEFAULT IMS", "ims",
                                 ApnSetting.TYPE_IMS))

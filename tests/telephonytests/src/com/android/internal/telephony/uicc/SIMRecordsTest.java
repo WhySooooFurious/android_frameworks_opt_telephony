@@ -16,7 +16,6 @@
 
 package com.android.internal.telephony.uicc;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -52,9 +51,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -730,65 +726,6 @@ public class SIMRecordsTest extends TelephonyTest {
     }
 
     @Test
-    public void testGetImsApplicationReferenceIdentifier() {
-        String[] expectedIari = {"urn:3gpp-access:apn-id.ims.mnc001.mcc001.gprs"};
-        List<byte[]> iariBytes = encodeIariTlvObject(expectedIari);
-
-        Message message = mSIMRecordsUT.obtainMessage(SIMRecords.EVENT_GET_IARI_DONE);
-        AsyncResult.forMessage(message, iariBytes, null);
-        mSIMRecordsUT.handleMessage(message);
-
-        assertArrayEquals(expectedIari, mSIMRecordsUT.getUiccIari());
-    }
-
-    @Test
-    public void testGetImsApplicationReferenceIdentifierIsNull() {
-        Message message = mSIMRecordsUT.obtainMessage(SIMRecords.EVENT_GET_IARI_DONE);
-        AsyncResult.forMessage(message, null, null);
-        mSIMRecordsUT.handleMessage(message);
-
-        assertNull(mSIMRecordsUT.getUiccIari());
-    }
-
-    @Test
-    public void testGetImsApplicationReferenceIdentifierException() {
-        String[] expectedIari = {"urn:3gpp-access:apn-id.ims.mnc001.mcc001.gprs"};
-        List<byte[]> iariBytes = encodeIariTlvObject(expectedIari);
-
-        Message message = mSIMRecordsUT.obtainMessage(SIMRecords.EVENT_GET_IARI_DONE);
-        AsyncResult.forMessage(message, iariBytes, new CommandException(
-                CommandException.Error.OPERATION_NOT_ALLOWED));
-        mSIMRecordsUT.handleMessage(message);
-
-        assertNull(mSIMRecordsUT.getUiccIari());
-    }
-
-    private static List<byte[]> encodeIariTlvObject(String[] iariValues) {
-        List<byte[]> tlvList = new ArrayList<>();
-        if (iariValues == null || iariValues.length == 0) {
-            return tlvList;
-        }
-
-        for (String iariValue : iariValues) {
-            byte[] iari = iariValue.getBytes(StandardCharsets.UTF_8);
-            byte[] size = new byte[]{(byte) iari.length};
-            ByteArrayOutputStream tlvData = new ByteArrayOutputStream();
-
-            try {
-                tlvData.write(0x80); // IARI TLV TAG
-                tlvData.write(size);    // Length of IARI
-                tlvData.write(iari);    // IARI value
-            } catch (IOException e) {
-                fail("encodeIariTlvObject: IO exception:" + e);
-            }
-
-            tlvList.add(tlvData.toByteArray());
-        }
-
-        return tlvList;
-    }
-
-    @Test
     public void testSetVoiceMailNumber() throws InterruptedException {
         String voiceMailNumber = "1234567890";
         String alphaTag = "Voicemail";
@@ -1033,5 +970,110 @@ public class SIMRecordsTest extends TelephonyTest {
             sleep(50);
         }
         assertEquals("Service Unbound", condition.expected(), condition.actual());
+    }
+
+    @Test
+    public void testEfCfisTooShortDoesNotCrash() {
+        // Mock EF_CFIS to return a 1-byte array (record size 1), which is invalid
+        // per spec (TS 51.011 requires 16 bytes).
+        doAnswer(
+                invocation -> {
+                    Message response = invocation.getArgument(2); // Message is at index 2
+                    AsyncResult.forMessage(response, new byte[]{0x01}, null);
+                    response.sendToTarget();
+                    return null;
+                }
+        ).when(mFhMock).loadEFLinearFixed(eq(SIMRecords.EF_CFIS), anyInt(), any(Message.class));
+
+        // Mock EF_CFF_CPHS to return valid data (1 byte) to isolate EF_CFIS failure
+        doAnswer(
+                invocation -> {
+                    Message response = invocation.getArgument(1);
+                    AsyncResult.forMessage(response, new byte[]{0x00}, null);
+                    response.sendToTarget();
+                    return null;
+                }
+        ).when(mFhMock).loadEFTransparent(eq(SIMRecords.EF_CFF_CPHS), any(Message.class));
+
+        // Set state to trigger onAllRecordsLoaded() when the event completes
+        setProtectedField(mSIMRecordsUT, "mRecordsRequested", true);
+        setProtectedField(mSIMRecordsUT, "mRecordsToLoad", 1);
+
+        // Trigger the record loading by sending the event directly to the handler.
+        // This simulates the completion of the EF_CFIS load.
+        Message msg = mSIMRecordsUT.obtainMessage(SIMRecords.EVENT_GET_CFIS_DONE);
+        AsyncResult.forMessage(msg, new byte[]{0x01}, null);
+        mSIMRecordsUT.handleMessage(msg);
+        mTestLooper.dispatchAll();
+
+        // If the bug is present, the looper dispatch above will throw
+        // ArrayIndexOutOfBoundsException when mSIMRecordsUT attempts to access
+        // mEfCfis[1] in setVoiceCallForwardingFlagFromSimRecords().
+        //
+        // If the fix is applied, it will handle it gracefully and not crash.
+        // We verify that the forwarding status is set to UNKNOWN (-1) since both
+        // EF_CFIS and EF_CFF are invalid/missing.
+        assertEquals(IccRecords.CALL_FORWARDING_STATUS_UNKNOWN,
+                mSIMRecordsUT.getVoiceCallForwardingFlag());
+    }
+
+    @Test
+    public void testEfCffEmptyDoesNotCrash() {
+        // Mock EF_CFIS to fail/be invalid so the code falls back to EF_CFF
+        doAnswer(
+                invocation -> {
+                    Message response = invocation.getArgument(2);
+                    AsyncResult.forMessage(response, null, new RuntimeException("Simulated error"));
+                    response.sendToTarget();
+                    return null;
+                }
+        ).when(mFhMock).loadEFLinearFixed(eq(SIMRecords.EF_CFIS), anyInt(), any(Message.class));
+
+        // Mock EF_CFF_CPHS to return 0 bytes (invalid, spec requires >= 1 byte)
+        doAnswer(
+                invocation -> {
+                    Message response = invocation.getArgument(1);
+                    AsyncResult.forMessage(response, new byte[0], null); // 0 bytes!
+                    response.sendToTarget();
+                    return null;
+                }
+        ).when(mFhMock).loadEFTransparent(eq(SIMRecords.EF_CFF_CPHS), any(Message.class));
+
+        // Set state to trigger onAllRecordsLoaded() when the event completes
+        setProtectedField(mSIMRecordsUT, "mRecordsRequested", true);
+        setProtectedField(mSIMRecordsUT, "mRecordsToLoad", 1);
+
+        // Trigger the CFF load completion
+        Message msg = mSIMRecordsUT.obtainMessage(SIMRecords.EVENT_GET_CFF_DONE);
+        AsyncResult.forMessage(msg, new byte[0], null);
+        mSIMRecordsUT.handleMessage(msg);
+        mTestLooper.dispatchAll();
+
+        // If the bug is present, this will throw ArrayIndexOutOfBoundsException
+        // when attempting to access mEfCff[0] in setVoiceCallForwardingFlagFromSimRecords().
+        //
+        // If fixed, it will complete without crashing.
+    }
+
+    private void setProtectedField(Object obj, String fieldName, Object value) {
+        try {
+            Class<?> clazz = obj.getClass();
+            java.lang.reflect.Field field = null;
+            while (clazz != null) {
+                try {
+                    field = clazz.getDeclaredField(fieldName);
+                    break;
+                } catch (NoSuchFieldException e) {
+                    clazz = clazz.getSuperclass();
+                }
+            }
+            if (field == null) {
+                throw new NoSuchFieldException(fieldName);
+            }
+            field.setAccessible(true);
+            field.set(obj, value);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

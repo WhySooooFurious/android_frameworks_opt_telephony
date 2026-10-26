@@ -21,7 +21,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.telephony.UiccSlotMapping;
 
-import com.android.internal.telephony.uicc.SimTypeInfo.SimType;
 import com.android.telephony.Rlog;
 
 import java.util.List;
@@ -262,28 +261,6 @@ public class RadioConfigProxy {
         } else {
             getHidl13().getHalDeviceCapabilities(serial);
         }
-    }
-
-    /**
-     * Wrapper function for using IRadioConfig.setSimType(in int serial,
-     * in android.hardware.radio.config.SimType[] simTypes) to update sim type.
-     */
-    public void setSimType(int serial, @SimType int[] simTypes) throws RemoteException {
-        if (isAidl()) {
-            getAidl().setSimType(serial, simTypes);
-        }
-        // Supports AIDL only
-    }
-
-    /**
-     * Wrapper function for using IRadioConfig.setSimType(in int serial,
-     * in android.hardware.radio.config.SimType[] simTypes) to update sim type.
-     */
-    public void getSimTypeInfo(int serial) throws RemoteException {
-        if (isAidl()) {
-            getAidl().getSimTypeInfo(serial);
-        }
-        // Supports AIDL only
     }
 
     /**

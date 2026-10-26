@@ -57,15 +57,6 @@ public class ImsRegistrationCallbackHelper {
                 @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech);
 
         /**
-         * Handle the callback when IMS is unregistered.
-         * This callback includes information about a throttling time in second.
-         */
-        void handleImsUnregistered(ImsReasonInfo imsReasonInfo,
-                @RegistrationManager.SuggestedAction int suggestedAction,
-                @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
-                int throttlingTimeSec);
-
-        /**
          * Handle the callback when the list of subscriber {@link Uri}s associated with this IMS
          * subscription changed.
          */
@@ -103,16 +94,6 @@ public class ImsRegistrationCallbackHelper {
                     updateRegistrationState(RegistrationManager.REGISTRATION_STATE_NOT_REGISTERED);
                     mImsRegistrationUpdate.handleImsUnregistered(imsReasonInfo, suggestedAction,
                             imsRadioTech);
-                }
-
-                @Override
-                public void onUnregistered(ImsReasonInfo imsReasonInfo,
-                        @RegistrationManager.SuggestedAction int suggestedAction,
-                        @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
-                        int throttlingTimeSec) {
-                    updateRegistrationState(RegistrationManager.REGISTRATION_STATE_NOT_REGISTERED);
-                    mImsRegistrationUpdate.handleImsUnregistered(imsReasonInfo, suggestedAction,
-                            imsRadioTech, throttlingTimeSec);
                 }
 
                 @Override

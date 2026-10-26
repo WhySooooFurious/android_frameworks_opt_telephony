@@ -38,6 +38,7 @@ import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalyti
 import com.android.internal.telephony.cdma.CdmaInboundSmsHandler;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.gsm.GsmInboundSmsHandler;
+import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.telephony.Rlog;
 
@@ -253,6 +254,7 @@ public class SmsBroadcastUndelivered {
             //  earlier. Also phoneId for old messages may not be known (messages may be from an
             //  inactive sub)
             Phone phone = PhoneFactory.getPhone(0);
+            int phoneId = 0;
 
             // Delete old incomplete message segments
             for (SmsReferenceKey message : oldMultiPartMessages) {
@@ -267,10 +269,13 @@ public class SmsBroadcastUndelivered {
                 }
                 // Update metrics with dropped SMS
                 if (rows > 0) {
+                    TelephonyMetrics metrics = TelephonyMetrics.getInstance();
+                    metrics.writeDroppedIncomingMultipartSms(phoneId, message.mFormat, rows,
+                            message.mMessageCount);
                     if (phone != null) {
                         phone.getSmsStats().onDroppedIncomingMultipartSms(message.mIs3gpp2, rows,
                                 message.mMessageCount, TelephonyManager.from(context)
-                                        .isEmergencyNumber(message.mAddress), 0);
+                                        .isEmergencyNumber(message.mAddress));
                         TelephonyAnalytics telephonyAnalytics = phone.getTelephonyAnalytics();
                         if (telephonyAnalytics != null) {
                             SmsMmsAnalytics smsMmsAnalytics =

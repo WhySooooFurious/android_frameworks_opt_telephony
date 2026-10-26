@@ -20,16 +20,11 @@ import static android.safetycenter.SafetyEvent.SAFETY_EVENT_TYPE_REFRESH_REQUEST
 import static android.safetycenter.SafetyEvent.SAFETY_EVENT_TYPE_SOURCE_STATE_CHANGED;
 import static android.safetycenter.SafetySourceData.SEVERITY_LEVEL_INFORMATION;
 import static android.safetycenter.SafetySourceData.SEVERITY_LEVEL_RECOMMENDATION;
-import static android.telephony.CellularIdentifierDisclosure.CELLULAR_IDENTIFIER_IMEI;
-import static android.telephony.CellularIdentifierDisclosure.CELLULAR_IDENTIFIER_IMSI;
-import static android.telephony.CellularIdentifierDisclosure.CELLULAR_IDENTIFIER_SUCI;
 
 import android.annotation.IntDef;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.safetycenter.SafetyCenterManager;
@@ -37,9 +32,6 @@ import android.safetycenter.SafetyEvent;
 import android.safetycenter.SafetySourceData;
 import android.safetycenter.SafetySourceIssue;
 import android.safetycenter.SafetySourceStatus;
-import android.telephony.CellularIdentifierDisclosure;
-import android.telephony.CellularIdentifierDisclosure.CellularIdentifier;
-import android.text.TextUtils;
 import android.text.format.DateFormat;
 
 import com.android.internal.R;
@@ -50,9 +42,10 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.time.Instant;
-import java.util.Calendar;
-import java.util.Date;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -98,9 +91,6 @@ public class CellularNetworkSecuritySafetySource {
     private boolean mIdentifierDisclosureIssuesEnabled;
     private HashMap<Integer, IdentifierDisclosure> mIdentifierDisclosures = new HashMap<>();
 
-    // Broadcast receiver for airplane mode intent broadcasts
-    private final BroadcastReceiver mReceiver = new CellularNetworkSecurityBroadcastReceiver();
-
     /**
      * Gets a singleton CellularNetworkSecuritySafetySource.
      */
@@ -121,22 +111,9 @@ public class CellularNetworkSecuritySafetySource {
 
     /** Enables or disables the null cipher issue and clears any current issues. */
     public synchronized void setNullCipherIssueEnabled(Context context, boolean enabled) {
-        // This check ensures that if we're enabled and we are asked to enable ourselves again (can
-        // happen if the modem restarts), we don't clear our state.
-        if (enabled != mNullCipherStateIssuesEnabled) {
-            mNullCipherStateIssuesEnabled = enabled;
-            mNullCipherStates.clear();
-            updateSafetyCenter(context);
-            if (enabled) {
-                // Register for airplane mode intent broadcasts.
-                IntentFilter intentFilter =
-                        new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
-                context.registerReceiver(mReceiver, intentFilter);
-            } else {
-                // Unregister for airplane mode intent broadcasts.
-                context.unregisterReceiver(mReceiver);
-            }
-        }
+        mNullCipherStateIssuesEnabled = enabled;
+        mNullCipherStates.clear();
+        updateSafetyCenter(context);
     }
 
     /** Sets the null cipher issue state for the identified subscription. */
@@ -169,11 +146,9 @@ public class CellularNetworkSecuritySafetySource {
 
     /** Sets the identifier disclosure issue state for the identifier subscription. */
     public synchronized void setIdentifierDisclosure(
-            Context context, int subId, CellularIdentifierDisclosure disclosure, int count,
-            Instant start, Instant end) {
-        IdentifierDisclosure identifierDisclosure =
-                new IdentifierDisclosure(count, start, end, disclosure);
-        mIdentifierDisclosures.put(subId, identifierDisclosure);
+            Context context, int subId, int count, Instant start, Instant end) {
+        IdentifierDisclosure disclosure = new IdentifierDisclosure(count, start, end);
+        mIdentifierDisclosures.put(subId, disclosure);
         updateSafetyCenter(context);
     }
 
@@ -266,7 +241,7 @@ public class CellularNetworkSecuritySafetySource {
                 break;
             case NULL_CIPHER_STATE_NOTIFY_ENCRYPTED:
                 builder = new SafetySourceIssue.Builder(
-                        NULL_CIPHER_ISSUE_ENCRYPTED_ID + "_" + subId,
+                        NULL_CIPHER_ISSUE_NON_ENCRYPTED_ID + "_" + subId,
                         context.getString(
                                 R.string.scNullCipherIssueEncryptedTitle,
                                 subInfo.getDisplayName()),
@@ -325,33 +300,23 @@ public class CellularNetworkSecuritySafetySource {
 
         SubscriptionInfoInternal subInfo =
                 mSubscriptionManagerService.getSubscriptionInfoInternal(subId);
-        String cellularIdentifier =
-                getCellularIdentifier(context, disclosure.mDisclosure.getCellularIdentifier());
-        String issueSummaryNotification;
-        String issueSummary;
-        if (TextUtils.isEmpty(cellularIdentifier)) {
-            issueSummaryNotification =
-                    context.getString(R.string.scIdentifierDisclosureIssueSummaryNotification,
-                            getCurrentTime(context), subInfo.getDisplayName());
-            issueSummary = context.getString(R.string.scIdentifierDisclosureIssueSummary,
-                    getCurrentTime(context), subInfo.getDisplayName());
-        } else {
-            issueSummaryNotification =
-                    context.getString(R.string.scIDIssueSummaryNotificationWithCellularID,
-                            getCurrentTime(context), cellularIdentifier, subInfo.getDisplayName());
-            issueSummary = context.getString(R.string.scIDIssueSummaryWithCellularID,
-                    getCurrentTime(context), cellularIdentifier, subInfo.getDisplayName());
-        }
+
         // Notifications have no buttons
         final SafetySourceIssue.Notification customNotification =
                 new SafetySourceIssue.Notification.Builder(
                         context.getString(R.string.scIdentifierDisclosureIssueTitle),
-                        issueSummaryNotification).build();
+                        context.getString(
+                                R.string.scIdentifierDisclosureIssueSummaryNotification,
+                                getCurrentTime(),
+                                subInfo.getDisplayName())).build();
         SafetySourceIssue.Builder builder =
                 new SafetySourceIssue.Builder(
                         IDENTIFIER_DISCLOSURE_ISSUE_ID + "_" + subId,
                         context.getString(R.string.scIdentifierDisclosureIssueTitle),
-                        issueSummary,
+                        context.getString(
+                                R.string.scIdentifierDisclosureIssueSummary,
+                                getCurrentTime(),
+                                subInfo.getDisplayName()),
                         SEVERITY_LEVEL_RECOMMENDATION,
                         IDENTIFIER_DISCLOSURE_ISSUE_ID)
                         .setNotificationBehavior(
@@ -382,19 +347,10 @@ public class CellularNetworkSecuritySafetySource {
         return Optional.of(builder.build());
     }
 
-    private String getCurrentTime(Context context) {
-        Date today = Calendar.getInstance().getTime();
-        return DateFormat.getTimeFormat(context).format(today);
-    }
-
-    private String getCellularIdentifier(Context context,
-                                         @CellularIdentifier int cellularIdentifier) {
-        return switch (cellularIdentifier) {
-            case CELLULAR_IDENTIFIER_IMSI -> context.getString(R.string.cellular_identifier_imsi);
-            case CELLULAR_IDENTIFIER_IMEI -> context.getString(R.string.cellular_identifier_imei);
-            case CELLULAR_IDENTIFIER_SUCI -> context.getString(R.string.cellular_identifier_suci);
-            default -> "";
-        };
+    private String getCurrentTime() {
+        String pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "hh:mm");
+        return Instant.now().atZone(ZoneId.systemDefault())
+              .format(DateTimeFormatter.ofPattern(pattern)).toString();
     }
 
     /**
@@ -455,14 +411,11 @@ public class CellularNetworkSecuritySafetySource {
         private final int mDisclosureCount;
         private final Instant mWindowStart;
         private final Instant mWindowEnd;
-        private final CellularIdentifierDisclosure mDisclosure;
 
-        private IdentifierDisclosure(int count, Instant start, Instant end,
-                                     CellularIdentifierDisclosure disclosure) {
+        private IdentifierDisclosure(int count, Instant start, Instant end) {
             mDisclosureCount = count;
             mWindowStart = start;
             mWindowEnd = end;
-            mDisclosure = disclosure;
         }
 
         private int getDisclosureCount() {
@@ -485,30 +438,12 @@ public class CellularNetworkSecuritySafetySource {
             IdentifierDisclosure other = (IdentifierDisclosure) o;
             return mDisclosureCount == other.mDisclosureCount
                     && Objects.equals(mWindowStart, other.mWindowStart)
-                    && Objects.equals(mWindowEnd, other.mWindowEnd)
-                    && Objects.equals(mDisclosure, other.mDisclosure);
+                    && Objects.equals(mWindowEnd, other.mWindowEnd);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(mDisclosureCount, mWindowStart, mWindowEnd, mDisclosure);
-        }
-    }
-
-    /**
-     * Receiver for airplane mode intent broadcasts for cellular network security.
-     */
-    private class CellularNetworkSecurityBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (action.equals(Intent.ACTION_AIRPLANE_MODE_CHANGED)) {
-                boolean airplaneMode = intent.getBooleanExtra("state", false);
-                if (airplaneMode) {
-                    mNullCipherStates.clear();
-                    updateSafetyCenter(context);
-                }
-            }
+            return Objects.hash(mDisclosureCount, mWindowStart, mWindowEnd);
         }
     }
 }

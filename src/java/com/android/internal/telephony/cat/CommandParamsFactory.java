@@ -19,7 +19,6 @@ package com.android.internal.telephony.cat;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.BROWSER_TERMINATION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.BROWSING_STATUS_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.IDLE_SCREEN_AVAILABLE_EVENT;
-import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.IMS_REGISTRATION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.LANGUAGE_SELECTION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.USER_ACTIVITY_EVENT;
 
@@ -36,14 +35,12 @@ import android.telephony.SmsMessage;
 import android.text.TextUtils;
 
 import com.android.internal.telephony.GsmAlphabet;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.uicc.IccFileHandler;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
-
+import java.util.Locale;
 /**
  * Factory class, used for decoding raw byte arrays, received from baseband,
  * into a CommandParams object.
@@ -156,11 +153,6 @@ public class CommandParamsFactory extends Handler {
         return cmdDet;
     }
 
-    /**
-     * Decode a BER-TLV object and notifies the caller after it's decoded.
-     *
-     * @param berTlv BER-TLV object to decode.
-     */
     void make(BerTlv berTlv) {
         if (berTlv == null) {
             return;
@@ -233,15 +225,11 @@ public class CommandParamsFactory extends Handler {
                 case RUN_AT:
                 case SEND_SS:
                 case SEND_USSD:
-                    cmdPending = Flags.supportStkCommandUssdAndCall()
-                            ? processSendUssd(cmdDet, ctlvs)
-                            : processEventNotify(cmdDet, ctlvs);
+                    cmdPending = processEventNotify(cmdDet, ctlvs);
                     break;
                 case GET_CHANNEL_STATUS:
                 case SET_UP_CALL:
-                    cmdPending = Flags.supportStkCommandUssdAndCall()
-                            ? processSetupCallWithValidation(cmdDet, ctlvs)
-                            : processSetupCall(cmdDet, ctlvs);
+                    cmdPending = processSetupCall(cmdDet, ctlvs);
                     break;
                 case LAUNCH_BROWSER:
                     cmdPending = processLaunchBrowser(cmdDet, ctlvs);
@@ -785,48 +773,6 @@ public class CommandParamsFactory extends Handler {
         return false;
     }
 
-    /**
-     * Processes SEND_USSD message from baseband.
-     *
-     * @param cmdDet Command Details container object.
-     * @param ctlvs List of ComprehensionTlv objects following Command Details
-     *        object and Device Identities object within the proactive command
-     * @return true if the command processing is pending and additional
-     *         asynchronous processing is required.
-     */
-    public boolean processSendUssd(CommandDetails cmdDet,
-            List<ComprehensionTlv> ctlvs) throws ResultException {
-        CatLog.d(this, "process SendUssd");
-
-        TextMessage textMsg = new TextMessage();
-
-        SequentialParser parser = new SequentialParser(ctlvs.iterator());
-        parser.parseMandatory(ComprehensionTlvTag.COMMAND_DETAILS, null);
-        parser.parseMandatory(ComprehensionTlvTag.DEVICE_IDENTITIES, null);
-        textMsg.text = parser.parseOptional(ComprehensionTlvTag.ALPHA_ID,
-                (ctlv) -> ValueParser.retrieveAlphaId(ctlv, mNoAlphaUsrCnf), null);
-        byte codingScheme = parser.parseMandatory(ComprehensionTlvTag.USSD_STRING,
-                (ctlv) -> ValueParser.retrieveTextCodingScheme(ctlv), false);
-        String ussdString = parser.parseMandatory(ComprehensionTlvTag.USSD_STRING,
-                (ctlv) -> ValueParser.retrieveTextString(ctlv));
-        IconId iconId = parser.parseOptional(ComprehensionTlvTag.ICON_ID,
-                (ctlv) -> ValueParser.retrieveIconId(ctlv), null);
-
-        if (iconId != null) {
-            textMsg.iconSelfExplanatory = iconId.selfExplanatory;
-        }
-
-        mCmdParams = new SendUssdParams(cmdDet, textMsg, ussdString, codingScheme);
-
-        if (iconId != null) {
-            mloadIcon = true;
-            mIconLoadState = LOAD_SINGLE_ICON;
-            mIconLoader.loadIcon(iconId.recordNumber, this
-                    .obtainMessage(MSG_ID_LOAD_ICON_DONE));
-            return true;
-        }
-        return false;
-    }
 
     /**
      * Processes SMS_EVENT_NOTIFY message from baseband.
@@ -917,7 +863,6 @@ public class CommandParamsFactory extends Handler {
                         case LANGUAGE_SELECTION_EVENT:
                         case BROWSER_TERMINATION_EVENT:
                         case BROWSING_STATUS_EVENT:
-                        case IMS_REGISTRATION_EVENT:
                             eventList[i] = eventValue;
                             i++;
                             break;
@@ -1139,64 +1084,6 @@ public class CommandParamsFactory extends Handler {
 
             mIconLoader.loadIcons(recordNumbers, this
                     .obtainMessage(MSG_ID_LOAD_ICON_DONE));
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Processes SETUP_CALL proactive command from the SIM card.
-     *
-     * @param cmdDet Command Details object retrieved from the proactive command
-     *        object
-     * @param ctlvs List of ComprehensionTlv objects following Command Details
-     *        object and Device Identities object within the proactive command
-     * @return true if the command processing is pending and additional
-     *         asynchronous processing is required.
-     */
-    private boolean processSetupCallWithValidation(CommandDetails cmdDet,
-            List<ComprehensionTlv> ctlvs) throws ResultException {
-        CatLog.d(this, "process SetupCall");
-
-        // User confirmation phase message.
-        TextMessage confirmMsg = new TextMessage();
-        // Call set up phase message.
-        TextMessage callMsg = new TextMessage();
-
-        SequentialParser parser = new SequentialParser(ctlvs.iterator());
-        parser.parseMandatory(ComprehensionTlvTag.COMMAND_DETAILS, null);
-        parser.parseMandatory(ComprehensionTlvTag.DEVICE_IDENTITIES, null);
-        confirmMsg.text = parser.parseOptional(ComprehensionTlvTag.ALPHA_ID,
-                (ctlv) -> ValueParser.retrieveAlphaId(ctlv, mNoAlphaUsrCnf), null);
-        String address = parser.parseMandatory(ComprehensionTlvTag.ADDRESS,
-                (ctlv) -> ValueParser.retrieveAddress(ctlv));
-        parser.parseOptional(ComprehensionTlvTag.CAPABILITY_CONFIGURATION_PARAMETERS, null, null);
-        parser.parseOptional(ComprehensionTlvTag.SUBADDRESS, null, null);
-        Duration duration = parser.parseOptional(ComprehensionTlvTag.DURATION,
-                (ctlv) -> ValueParser.retrieveDuration(ctlv), null);
-        IconId confirmIconId = parser.parseOptional(ComprehensionTlvTag.ICON_ID,
-                (ctlv) -> ValueParser.retrieveIconId(ctlv), null);
-        callMsg.text = parser.parseOptional(ComprehensionTlvTag.ALPHA_ID,
-                (ctlv) -> ValueParser.retrieveAlphaId(ctlv, mNoAlphaUsrCnf), null);
-        IconId callIconId = parser.parseOptional(ComprehensionTlvTag.ICON_ID,
-                (ctlv) -> ValueParser.retrieveIconId(ctlv), null);
-
-        if (confirmIconId != null) {
-            confirmMsg.iconSelfExplanatory = confirmIconId.selfExplanatory;
-        }
-        if (callIconId != null) {
-            callMsg.iconSelfExplanatory = callIconId.selfExplanatory;
-        }
-
-        mCmdParams = new CallSetupParams(cmdDet, confirmMsg, callMsg, address, duration);
-
-        if (confirmIconId != null || callIconId != null) {
-            mIconLoadState = LOAD_MULTI_ICONS;
-            int[] recordNumbers = new int[2];
-            recordNumbers[0] = confirmIconId != null ? confirmIconId.recordNumber : -1;
-            recordNumbers[1] = callIconId != null ? callIconId.recordNumber : -1;
-
-            mIconLoader.loadIcons(recordNumbers, obtainMessage(MSG_ID_LOAD_ICON_DONE));
             return true;
         }
         return false;

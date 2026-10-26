@@ -28,11 +28,10 @@ import android.telephony.satellite.stub.SatelliteModemState;
 import android.telephony.satellite.stub.SatelliteResult;
 import android.util.Log;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DemoSimulator extends StateMachine {
     private static final String TAG = "DemoSimulator";
@@ -51,9 +50,10 @@ public class DemoSimulator extends StateMachine {
     @NonNull private final PowerOffState mPowerOffState = new PowerOffState();
     @NonNull private final NotConnectedState mNotConnectedState = new NotConnectedState();
     @NonNull private final ConnectedState mConnectedState = new ConnectedState();
+    @NonNull private final Object mLock = new Object();
+    @GuardedBy("mLock")
+    private boolean mIsAligned = false;
     private ISatelliteListener mISatelliteListener;
-
-    private AtomicBoolean mIsAligned = new AtomicBoolean(false);
 
     /**
      * @return The singleton instance of DemoSimulator.
@@ -134,8 +134,10 @@ public class DemoSimulator extends StateMachine {
                         SatelliteModemState.SATELLITE_MODEM_STATE_OUT_OF_SERVICE);
                 mISatelliteListener.onNtnSignalStrengthChanged(ntnSignalStrength);
 
-                if (mIsAligned.get()) {
-                    handleEventDeviceAlignedWithSatellite(true);
+                synchronized (mLock) {
+                    if (mIsAligned) {
+                        handleEventDeviceAlignedWithSatellite(true);
+                    }
                 }
             } catch (RemoteException e) {
                 loge("NotConnectedState: RemoteException " + e);
@@ -192,8 +194,10 @@ public class DemoSimulator extends StateMachine {
                         SatelliteModemState.SATELLITE_MODEM_STATE_IN_SERVICE);
                 mISatelliteListener.onNtnSignalStrengthChanged(ntnSignalStrength);
 
-                if (!mIsAligned.get()) {
-                    handleEventDeviceAlignedWithSatellite(false);
+                synchronized (mLock) {
+                    if (!mIsAligned) {
+                        handleEventDeviceAlignedWithSatellite(false);
+                    }
                 }
             } catch (RemoteException e) {
                 loge("ConnectedState: RemoteException " + e);
@@ -314,10 +318,12 @@ public class DemoSimulator extends StateMachine {
      * Set whether the device is aligned with the satellite.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    protected void setDeviceAlignedWithSatellite(boolean isAligned) {
-        if (mSatelliteController.isDemoModeEnabled()) {
-            mIsAligned.set(isAligned);
-            sendMessage(EVENT_DEVICE_ALIGNED_WITH_SATELLITE, isAligned);
+    public void setDeviceAlignedWithSatellite(boolean isAligned) {
+        synchronized (mLock) {
+            if (mSatelliteController.isDemoModeEnabled()) {
+                mIsAligned = isAligned;
+                sendMessage(EVENT_DEVICE_ALIGNED_WITH_SATELLITE, isAligned);
+            }
         }
     }
 }
