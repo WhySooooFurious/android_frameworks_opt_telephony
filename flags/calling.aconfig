@@ -106,14 +106,6 @@ flag {
     }
 }
 
-# OWNER=pmadapurmath TARGET=26Q2
-flag {
-    name: "support_auto_unhold"
-    namespace: "telephony"
-    description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
-    bug:"439893979"
-
-
 flag {
     name: "support_auto_unhold"
     namespace: "telephony"

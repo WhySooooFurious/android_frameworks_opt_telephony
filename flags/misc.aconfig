@@ -231,56 +231,6 @@ flag {
     }
 }
 
-# OWNER=hyeinyu TARGET=25Q4
-flag {
-    name: "enable_phone_number_parsing_api"
-    namespace: "telephony"
-    description: "Enable phone number parsing api"
-    bug:"412560144"
-    is_exported: true
-}
-
-# OWNER=dalemayehu TARGET=25Q4
-flag {
-    name: "enable_oem_log_sources_collection"
-    namespace: "telephony"
-    description: "Allow OEMs to collect logs from specified logs sources for e911 calls"
-    bug:"412747188"
-}
-
-# OWNER=aleksandermj TARGET=26Q1
-flag {
-    name: "minimal_telephony_cdm_check_board_api_level"
-    namespace: "telephony"
-    description: "Use ro.board.api_level for call/data/messaging feature checks"
-    bug:"395087895"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=boullanger TARGET=26Q2
-flag {
-    name: "allow_multi_country_mcc"
-    namespace: "telephony"
-    description: "Allows MCC to map to multiple countries."
-    bug: "393349646"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=jackyu TARGET=26Q2
-flag {
-    name: "delete_cdma"
-    namespace: "telephony"
-    description: "Remove CDMA code from the telephony code base"
-    bug: "435270591"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-
-
 flag {
     name: "enable_phone_number_parsing_api"
     namespace: "telephony"
@@ -306,7 +256,6 @@ flag {
     }
 }
 
-# OWNER=boullanger TARGET=26Q2
 flag {
     name: "allow_multi_country_mcc"
     namespace: "telephony"
@@ -317,44 +266,12 @@ flag {
     }
 }
 
-# OWNER=jackyu TARGET=26Q2
 flag {
     name: "delete_cdma"
     namespace: "telephony"
     description: "Remove CDMA code from the telephony code base"
     bug: "435270591"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-
-
-flag {
-    name: "allow_multi_country_mcc"
-    namespace: "telephony"
-    description: "Allows MCC to map to multiple countries."
-    bug: "393349646"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
-
-# OWNER=jackyu TARGET=26Q2
-flag {
-    name: "delete_cdma"
-    namespace: "telephony"
-    description: "Remove CDMA code from the telephony code base"
-    bug: "435270591"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-
-
-flag {
-    name: "delete_cdma"
-    namespace: "telephony"
-    description: "Remove CDMA code from the telephony code base"
-    bug: "435270591"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-
