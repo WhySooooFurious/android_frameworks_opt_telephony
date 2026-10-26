@@ -25,7 +25,7 @@ import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
-import android.app.ResultReceiver;
+import android.os.ResultReceiver;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
