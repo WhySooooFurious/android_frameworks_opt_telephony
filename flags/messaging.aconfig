@@ -61,3 +61,21 @@ flag {
   description: "API flag for redacting OTP SMS messages from untrusted listeners"
   bug: "351976749"
 }
+
+flag {
+  name: "limit_raw_table_visibility"
+  namespace: "telephony"
+  description: "limits the visibility of the raw SMS table"
+  bug: "430572311"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=nykkumar TARGET=25Q2
+flag {
+  name: "sms_mms_deliver_broadcasts_redirect_to_main_user"
+  namespace: "telephony"
+  description: "This flag controls the redirection of SMS_DELIVER AND WAP_PUSH_DELIVER broadcasts to the MAIN user."
+  bug: "314321617"
+

@@ -103,3 +103,21 @@ flag {
     description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
     bug:"439893979"
 }
+
+flag {
+    name: "vvm_async_sim_state_handling"
+    namespace: "telephony"
+    description: "Prevent ANRs in the VvmSimStateTracker by moving tasks to the background"
+    bug:"433343546"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=pmadapurmath TARGET=26Q2
+flag {
+    name: "support_auto_unhold"
+    namespace: "telephony"
+    description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
+    bug:"439893979"
+

@@ -55,3 +55,35 @@ flag {
     description: "Guard system API for vendor-specific classifications of cellular ID disclosures"
     bug: "355062720"
 }
+
+flag {
+    name: "cell_identity_for_barring_info"
+    is_exported: true
+    namespace: "telephony"
+    description: "Allows access to the CellIdentity for BarringInfo."
+    bug: "431881770"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=sangyun TARGET=26Q2
+flag {
+    name: "duplex_mode_for_ngran"
+    namespace: "telephony"
+    description: "NR Duplex Mode can be Calculated"
+    bug: "355284319"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "duplex_mode_for_ngran"
+    namespace: "telephony"
+    description: "NR Duplex Mode can be Calculated"
+    bug: "355284319"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

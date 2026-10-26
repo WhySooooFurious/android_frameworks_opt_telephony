@@ -89,3 +89,186 @@ flag {
   description: "Support notifying IMS data network"
   bug:"389103112"
 }
+
+flag {
+  name: "keep_wfc_on_apm"
+  namespace: "telephony"
+  description: "Keep WFC even when turn on APM."
+  bug:"420996981"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=sarahchin TARGET=24Q3
+flag {
+  name: "slicing_additional_error_codes"
+  is_exported: true
+  namespace: "telephony"
+  description: "Support additional slicing error codes and functionality."
+  bug: "307378699"
+}
+
+# OWNER=sangyun TARGET=24Q3
+flag {
+  name: "network_validation"
+  is_exported: true
+  namespace: "telephony"
+  description: "Request network validation for data networks and response status."
+  bug:"286171724"
+}
+
+# OWNER=gwenlin TARGET=25Q2
+flag {
+  name: "incall_handover_policy"
+  namespace: "telephony"
+  description: "Support IWLAN handover policy based on incall."
+  bug:"376765521"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=nagendranb TARGET=25Q2
+flag {
+  name: "data_service_check"
+  namespace: "telephony"
+  description: "Support data service check based on nri available services."
+  bug:"381338283"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=kuenyuet TARGET=26Q2
+flag {
+  name: "data_service_user_data_toggle_notify"
+  namespace: "telephony"
+  description: "Support notify data services when user data and user data roaming is toggled."
+  bug:"389120182"
+}
+
+# OWNER=rambowang TARGET=25Q4
+flag {
+    name: "macro_based_opportunistic_networks"
+    is_exported: true
+    namespace: "telephony"
+    description: "This flag enable the macro-based opportunistic networks with auto data switch"
+    bug:"401006757"
+}
+
+# OWNER=rambowang TARGET=25Q4
+flag {
+  name: "monitor_carrier_config_change_for_auto_data_switch"
+  namespace: "telephony"
+  description: "This flag lets AutoDataSwitchController monitor carrier config changes and update the policy accordingly."
+  bug:"436856439"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+  name: "data_service_notify_ims_data_network"
+  namespace: "telephony"
+  description: "Support notifying IMS data network"
+  bug:"389103112"
+}
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "inactive_data_network_is_not_stalled"
+  namespace: "telephony"
+  description: "A DataNetwork that is not the active DataNetwork should not broadcast a data stall"
+  bug:"430976119"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "ignore_initial_data_stall_recovered"
+  namespace: "telephony"
+  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
+  bug:"432293174"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "monitor_carrier_config_change_for_auto_data_switch"
+  namespace: "telephony"
+  description: "This flag lets AutoDataSwitchController monitor carrier config changes and update the policy accordingly."
+  bug:"436856439"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+  name: "data_service_notify_ims_data_network"
+  namespace: "telephony"
+  description: "Support notifying IMS data network"
+  bug:"389103112"
+}
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "inactive_data_network_is_not_stalled"
+  namespace: "telephony"
+  description: "A DataNetwork that is not the active DataNetwork should not broadcast a data stall"
+  bug:"430976119"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "ignore_initial_data_stall_recovered"
+  namespace: "telephony"
+  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
+  bug:"432293174"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "inactive_data_network_is_not_stalled"
+  namespace: "telephony"
+  description: "A DataNetwork that is not the active DataNetwork should not broadcast a data stall"
+  bug:"430976119"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "ignore_initial_data_stall_recovered"
+  namespace: "telephony"
+  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
+  bug:"432293174"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "ignore_initial_data_stall_recovered"
+  namespace: "telephony"
+  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
+  bug:"432293174"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

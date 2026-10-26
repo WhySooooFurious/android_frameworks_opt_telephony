@@ -41,3 +41,14 @@ flag {
       purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "log_calls_answered_elsewhere"
+    is_exported: true
+    namespace: "telephony"
+    description: "New CC key Log calls which were answered on another device."
+    bug: "405460896"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}

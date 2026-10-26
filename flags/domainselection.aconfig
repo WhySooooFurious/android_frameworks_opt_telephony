@@ -82,3 +82,13 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "ignore_state_details_update_for_domain_reselection"
+    namespace: "telephony"
+    description: "This flag ignores the state details update of the connection while domain reselection is performing due to a call failure."
+    bug:"429443154"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

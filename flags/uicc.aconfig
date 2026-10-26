@@ -153,3 +153,45 @@ flag {
     bug:"427638226"
     is_exported: true
 }
+
+flag {
+    name: "support_stk_command_ussd_and_call"
+    namespace: "telephony"
+    description: "When enabled, SEND USSD and SET UP CALL commands from STK are handled through the telephony framework."
+    bug:"404099417"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=muralidharm TARGET=25Q4
+flag {
+    name: "support_slot_switching_2psim_1esim_config"
+    namespace: "telephony"
+    description: "Flag to control supporting slow switching in 2pSIM+1eSIM configured devices"
+    bug:"427638226"
+    is_exported: true
+}
+
+# OWNER=jhyoon TARGET=26Q2
+flag {
+    name: "support_ims_registration_event_download"
+    is_exported: true
+    namespace: "telephony"
+    description: "This flag controls whether support APIs for the USAT IMS registration event download feature."
+    bug:"408143665"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    name: "support_ims_registration_event_download"
+    is_exported: true
+    namespace: "telephony"
+    description: "This flag controls whether support APIs for the USAT IMS registration event download feature."
+    bug:"408143665"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}

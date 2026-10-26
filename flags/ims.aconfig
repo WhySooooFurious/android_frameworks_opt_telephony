@@ -191,3 +191,244 @@ flag {
     description: "This flag adds P-CSCF address in IMS registration attributes"
     bug:"433593483"
 }
+
+flag {
+    name: "support_throttle_time_for_deregistration"
+    namespace: "telephony"
+    description: "This flag controls whether the IMS registration throttling time is sent to the modem upon deregistration to support time-based carrier requirements."
+    bug:"408139522"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=grantmenke TARGET=25Q4
+flag {
+    name: "reuse_original_conn_remote_conf_behavior"
+    namespace: "telephony"
+    description: "Used to reuse the original Telephony Connection when a remotely hosted IMS conference is created."
+    bug:"391889544"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "allowed_services"
+    namespace: "telephony"
+    description: "Update allowed services to the modem"
+    bug:"389157806"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=vodduarun TARGET=25Q4
+flag {
+    name: "send_merge_failure_on_handle_conference_failed"
+    namespace: "telephony"
+    description: "This flag updates merge failure to clients when ImsCall rejects the merge request"
+    bug:"418942310"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=gpiecyk TARGET=25Q4
+flag {
+    name: "enable_rtt_hold_carrier_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_HOLD_IN_RTT_CALL_BOOL carrier config."
+    bug: "413765645"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}
+
+flag {
+    name: "reuse_original_conn_remote_conf_behavior"
+    namespace: "telephony"
+    description: "Used to reuse the original Telephony Connection when a remotely hosted IMS conference is created."
+    bug:"391889544"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "allowed_services"
+    namespace: "telephony"
+    description: "Update allowed services to the modem"
+    bug:"389157806"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=vodduarun TARGET=25Q4
+flag {
+    name: "send_merge_failure_on_handle_conference_failed"
+    namespace: "telephony"
+    description: "This flag updates merge failure to clients when ImsCall rejects the merge request"
+    bug:"418942310"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=gpiecyk TARGET=25Q4
+flag {
+    name: "enable_rtt_hold_carrier_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_HOLD_IN_RTT_CALL_BOOL carrier config."
+    bug: "413765645"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}
+
+flag {
+    name: "allowed_services"
+    namespace: "telephony"
+    description: "Update allowed services to the modem"
+    bug:"389157806"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=vodduarun TARGET=25Q4
+flag {
+    name: "send_merge_failure_on_handle_conference_failed"
+    namespace: "telephony"
+    description: "This flag updates merge failure to clients when ImsCall rejects the merge request"
+    bug:"418942310"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=gpiecyk TARGET=25Q4
+flag {
+    name: "enable_rtt_hold_carrier_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_HOLD_IN_RTT_CALL_BOOL carrier config."
+    bug: "413765645"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}
+
+flag {
+    name: "send_merge_failure_on_handle_conference_failed"
+    namespace: "telephony"
+    description: "This flag updates merge failure to clients when ImsCall rejects the merge request"
+    bug:"418942310"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=gpiecyk TARGET=25Q4
+flag {
+    name: "enable_rtt_hold_carrier_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_HOLD_IN_RTT_CALL_BOOL carrier config."
+    bug: "413765645"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}
+
+flag {
+    name: "enable_rtt_hold_carrier_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_HOLD_IN_RTT_CALL_BOOL carrier config."
+    bug: "413765645"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}
