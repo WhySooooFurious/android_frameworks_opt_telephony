@@ -96,14 +96,6 @@ flag {
     }
 }
 
-
-flag {
-    name: "support_auto_unhold"
-    namespace: "telephony"
-    description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
-    bug:"439893979"
-}
-
 flag {
     name: "vvm_async_sim_state_handling"
     namespace: "telephony"
@@ -121,3 +113,10 @@ flag {
     description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
     bug:"439893979"
 
+
+flag {
+    name: "support_auto_unhold"
+    namespace: "telephony"
+    description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
+    bug:"439893979"
+}

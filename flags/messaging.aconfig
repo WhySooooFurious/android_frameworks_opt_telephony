@@ -54,6 +54,7 @@ flag {
   description: "Redact OTP SMS messages from untrusted listeners"
   bug: "351976749"
 }
+
 flag {
   name: "redact_otp_sms_api"
   is_exported: true

@@ -55,7 +55,6 @@ flag {
   is_exported: true
 }
 
-
 flag {
   name: "ons_thread_consolidation"
   namespace: "telephony"

@@ -104,14 +104,6 @@ flag {
     }
 }
 
-
-flag {
-  name: "satellite_26q2_apis"
-  namespace: "telephony"
-  description: "This flag controls the changes for the new satellite APIs in 26Q2"
-  bug: "434764963"
-}
-
 flag {
     name: "satellite_improve_multi_thread_design"
     is_exported: false
@@ -451,6 +443,13 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 
+
+flag {
+  name: "satellite_26q2_apis"
+  namespace: "telephony"
+  description: "This flag controls the changes for the new satellite APIs in 26Q2"
+  bug: "434764963"
+}
 
 flag {
   name: "telephony_satellite_apis"

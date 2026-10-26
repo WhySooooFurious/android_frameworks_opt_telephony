@@ -127,31 +127,25 @@ flag {
     bug:"381319469"
 }
 
-
 flag {
     name: "sim_phonebook_cache_fix"
     namespace: "telephony"
     description: "This flag reset the cache if the sim phonebook is empty"
     bug:"404094844"
 }
+
 flag {
     name: "send_imsi_key_for_duplicate_sim"
     namespace: "telephony"
     description: "This will make sure to send the IMSIKey to Modem in case SIM2 operator is same as SIM1"
     bug:"400888891"
 }
+
 flag {
     name: "cat_service_creation_fix"
     namespace: "telephony"
     description: "Flag fix is to create the catService object with valid SIM Application"
     bug:"417398404"
-}
-flag {
-    name: "support_slot_switching_2psim_1esim_config"
-    namespace: "telephony"
-    description: "Flag to control supporting slow switching in 2pSIM+1eSIM configured devices"
-    bug:"427638226"
-    is_exported: true
 }
 
 flag {
@@ -183,6 +177,14 @@ flag {
     metadata {
         purpose: PURPOSE_FEATURE
     }
+}
+
+flag {
+    name: "support_slot_switching_2psim_1esim_config"
+    namespace: "telephony"
+    description: "Flag to control supporting slow switching in 2pSIM+1eSIM configured devices"
+    bug:"427638226"
+    is_exported: true
 }
 
 flag {
