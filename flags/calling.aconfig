@@ -106,3 +106,10 @@ flag {
     description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
     bug:"439893979"
 }
+
+flag {
+  name: "show_call_fail_notification_for_2g_toggle"
+  namespace: "telephony"
+  description: "Used in DisconnectCause and TelephonyConnection if a non-emergency call fails on a device with no 2G, to guard whether a user can see an updated error message reminding the 2G is disabled and potentially disrupting their call connectivity"
+  bug: "300142897"
+}

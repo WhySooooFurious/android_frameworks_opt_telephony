@@ -133,3 +133,136 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+  name: "do_not_override_precise_label"
+  namespace: "telephony"
+  description: "When set, Telecom will not override the precise label for certain disconnect causes."
+  bug: "296968778"
+  is_fixed_read_only: true
+}
+
+flag {
+  name: "ensure_access_to_call_settings_is_restricted"
+  namespace: "telephony"
+  description: "Check if access to mobile network configs restricted before displaying call options"
+  bug: "309655251"
+}
+
+flag {
+    name: "prevent_invocation_repeat_of_ril_call_when_device_does_not_support_voice"
+    namespace: "telephony"
+    description: "This flag prevents repeat invocation of call related APIs in RIL when the device is not voice capable"
+    bug: "290833783"
+}
+
+flag {
+    name: "set_no_reply_timer_for_cfnry"
+    namespace: "telephony"
+    description: "This flag supports setting the no reply timer for CFNRy based on carrier config"
+    bug:"314732435"
+}
+
+flag {
+    name: "change_method_of_obtaining_ims_registration_radio_tech"
+    namespace: "telephony"
+    description: "This flag changes the method of obtaining IMS registration radio technology"
+    bug:"330120237"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_relaxed_id_match"
+    namespace: "telephony"
+    description: "This flag supports relaxed id match for radio state changes"
+    bug:"336916327"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_carrier_config_for_cfnry_time_via_mmi"
+    namespace: "telephony"
+    description: "This flag allows the no reply timer to be referenced in the carrier config when setting up call forward via MMI code and there is no timer value."
+    bug:"342346827"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hsum_broadcast"
+    namespace: "telephony"
+    description: "Fixed the bug that broadcast intent is only sent to the system user."
+    bug:"362554272"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "support_carrier_services_for_hsum"
+    namespace: "telephony"
+    description: "Support Carrier Services (APIs) for HSUM."
+    bug:"345522246"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hsum_package_manager"
+    namespace: "telephony"
+    description: "Fixed the bug that package manager is not for the right user"
+    bug:"356827794"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "deprecate_cdma"
+    namespace: "telephony"
+    description: "Deprecate CDMA and NV APIS"
+    bug: "379356026"
+}
+
+flag {
+    name: "cleanup_cdma"
+    namespace: "telephony"
+    description: "Disable CDMA and NV backing code"
+    bug: "379356026"
+}
+
+flag {
+    name: "phone_type_cleanup"
+    namespace: "telephony"
+    description: "As CDMA deprecated, there is no need to switch phone type between CDMA and GSM"
+    bug: "379356026"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "thread_shred"
+    namespace: "telephony"
+    description: "Consolidate a bunch of unneeded worker threads to save resources"
+    bug:"390244513"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "carrier_config_changed_callback_fix"
+    namespace: "telephony"
+    description: "Carrier config callback race condition fix"
+    bug:"375526692"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

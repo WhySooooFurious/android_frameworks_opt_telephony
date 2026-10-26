@@ -111,3 +111,29 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+
+flag {
+  name: "auto_data_switch_enhanced"
+  namespace: "telephony"
+  description: "Ramp up RAT signal strength based auto data switch"
+  bug: "287132491"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "dds_callback"
+  namespace: "telephony"
+  description: "Adding new callback when DDS changed"
+  bug:"353723350"
+}
+
+flag {
+  name: "oem_paid_private"
+  namespace: "telephony"
+  description: "Support OEM_PAID and OEM_PRIVATE networks"
+  bug: "366194627"
+  is_exported: true
+}

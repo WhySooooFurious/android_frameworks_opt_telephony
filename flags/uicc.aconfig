@@ -117,3 +117,62 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+
+flag {
+    name: "imsi_key_retry_download_on_phone_unlock"
+    namespace: "telephony"
+    description: "This flag controls to download the IMSI encryption keys after user unlocks the phone."
+    bug:"303780982"
+}
+
+flag {
+    name: "carrier_restriction_rules_enhancement"
+    namespace: "telephony"
+    description: "This flag controls the new enhancements to the existing carrier restrictions rules"
+    bug:"317226653"
+}
+
+flag {
+    name: "uicc_app_count_check_to_create_channel"
+    namespace: "telephony"
+    description: "This flag controls to create the open channel when uicc application count is greater than 0."
+    bug:"349966950"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_carrierid_reset_for_sim_removal"
+    namespace: "telephony"
+    description: "This flag controls the carrierId reset while imsi key deletion time upon sim ejection."
+    bug:"366178705"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "force_imsi_certificate_delete"
+    namespace: "telephony"
+    description: "This flag controls the IMSI certificate delete with out any condition."
+    bug:"235296888"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "get_group_id_level2"
+    namespace: "telephony"
+    description: "This flag controls to get a group id level2."
+    bug:"381171540"
+}
+
+flag {
+    name: "action_sim_preference_settings"
+    namespace: "telephony"
+    description: "This flag controls to launch sim preference page in Setting"
+    bug:"381319469"
+}

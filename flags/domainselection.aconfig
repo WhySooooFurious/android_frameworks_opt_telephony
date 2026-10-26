@@ -66,3 +66,28 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+    name: "ap_domain_selection_enabled"
+    namespace: "telephony"
+    description: "This flag controls AP domain selection feature."
+    bug:"258112541"
+}
+
+flag {
+    name: "hangup_emergency_call_for_cross_sim_redialing"
+    namespace: "telephony"
+    description: "This flag controls the behavior of terminating an emergency call for cross SIM redialing."
+    bug:"336398541"
+}
+
+flag {
+    name: "disable_ecbm_based_on_rat"
+    namespace: "telephony"
+    description: "Fix bug entering the emergency callback mode in GSM or UMTS network."
+    bug:"389010789"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

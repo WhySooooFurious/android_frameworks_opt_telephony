@@ -135,3 +135,106 @@ flag {
     description: "This flag adds P-CSCF address in IMS registration attributes"
     bug:"433593483"
 }
+
+
+flag {
+    name: "ignore_already_terminated_incoming_call_before_registering_listener"
+    namespace: "telephony"
+    description: "This flag ignores the incoming call by throwing an exception if the call was already terminated before the framework registers the listener for the incoming call"
+    bug:"289461637"
+}
+
+flag {
+    name: "update_ims_service_by_gathering_provisioning_changes"
+    namespace: "telephony"
+    description: "This flag is created to prevent unnecessary updates when multiple provisioning items to update ims service are changed."
+    bug:"302281114"
+}
+
+flag {
+    name: "terminate_active_video_call_when_accepting_second_video_call_as_audio_only"
+    namespace: "telephony"
+    description: "This flag terminates active video call instead holding when accepting 2nd incoming video call as audio only"
+    bug:"309548300"
+}
+
+flag {
+    name: "call_extra_for_non_hold_supported_carriers"
+    namespace: "telephony"
+    description: "For DSDA devices, controls whether the existing call will be dropped when an incoming call on a different sub is answered, when either sub does not support hold capability."
+    bug:"315993953"
+}
+
+flag {
+    name: "update_roaming_state_to_set_wfc_mode"
+    namespace: "telephony"
+    description: "This flag updates roaming state to set wfc mode"
+    bug:"317298331"
+}
+
+flag {
+    name: "enable_sip_subscribe_retry"
+    namespace: "telephony"
+    description: "This flag controls whether framework supports SIP subscribe retry or not"
+    bug:"297023230"
+}
+
+flag {
+    name: "answer_audio_only_when_answering_via_mmi_code"
+    namespace: "telephony"
+    description: "This flag changes the media type when answering incoming call via MMI code"
+    bug:"286499659"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "notify_initial_ims_provisioning_status"
+    namespace: "telephony"
+    description: "This flag allows to notify initial IMS provisioning status when IFeatureProvisioningCallback registered or ImsService connected"
+    bug:"330082572"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "set_number_of_sim_for_ims_enable"
+    namespace: "telephony"
+    description: "This flag allows to set number of SIM for IMS enable/disable for each slot when the eSIM is added while the binding with ImsService exists"
+    bug:"331971397"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "prevent_hangup_during_call_merge"
+    namespace: "telephony"
+    description: "This flag prevents hangup call during call merge"
+    bug:"317070933"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avoid_deleting_ims_object_from_cache"
+    namespace: "telephony"
+    description: "This flag controls deleting cached object to synchronize part of application callback and part of ImsFeature behavior"
+    bug:"353577279"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "skip_mmi_code_check_for_emergency_call"
+    namespace: "telephony"
+    description: "This flag allows to skip the MMI code check for the emergency number."
+    bug:"378065922"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

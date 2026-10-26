@@ -33,3 +33,22 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+
+flag {
+    name: "async_init_carrier_privileges_tracker"
+    is_exported: true
+    namespace: "telephony"
+    description: "Offload the heavyweight initialization of CarrierPrivilegesTracker to a worker thread"
+    bug:"357096337"
+}
+
+flag {
+    name: "disable_carrier_network_change_on_carrier_app_lost"
+    namespace: "telephony"
+    description: "Set carrier network change status to false whenever the carrier app is lost"
+    bug:"333571417"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}

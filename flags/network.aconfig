@@ -68,3 +68,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+
+flag {
+    name: "ignore_mcc_mnc_from_operator_for_locale"
+    namespace: "telephony"
+    description: "Ignoring mcc/mnc from RIL indication OPERATOR but only relying MCC/MNC from registered or nearby cells."
+    bug:"374589521"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

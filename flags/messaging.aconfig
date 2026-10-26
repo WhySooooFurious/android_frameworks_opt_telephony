@@ -56,3 +56,20 @@ flag {
   description: "This flag controls the redirection of SMS_DELIVER AND WAP_PUSH_DELIVER broadcasts to the MAIN user."
   bug: "314321617"
 }
+
+flag {
+  name: "sms_domain_selection_enabled"
+  namespace: "telephony"
+  description: "This flag controls AP domain selection support for normal/emergency SMS."
+  bug: "262804071"
+}
+
+flag {
+  name: "mms_get_apn_from_pdsc"
+  namespace: "telephony"
+  description: "This flag controls get APN details from PDSC instead of telephony provider."
+  bug: "324280016"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
